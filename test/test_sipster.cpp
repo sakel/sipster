@@ -184,3 +184,105 @@ TEST(test_via_parse_print, test_via_parse_print_1) {
     SIPSTER_DEBUG(pHeader);
     EXPECT_STREQ(via, pHeader);
 }
+
+TEST(test_cl_parse_print, test_cl_parse_print_1) {
+    char clen[] = "Content-Length: 349";
+
+    SIPSTER_INFO("Parsing header");
+
+    SipsterSipHeader * header = sipster_request_parse_header(clen);
+    EXPECT_TRUE(header);
+    EXPECT_EQ(SIP_HEADER_CONTENT_LENGTH, header->headerId);
+    EXPECT_STREQ("Content-Length", header->headerName);
+
+    SipsterSipHeaderContentLength * headerCl = (SipsterSipHeaderContentLength *) header;
+    EXPECT_EQ((unsigned int)349, headerCl->length);
+
+    char * pHeader = sipster_request_print_header(header);
+    SIPSTER_DEBUG(pHeader);
+    EXPECT_STREQ(clen, pHeader);
+}
+
+TEST(test_ct_parse_print, test_ct_parse_print_1) {
+    char ct[] = "Content-Type: application/sdp;charset=ISO-8859-4";
+
+    SIPSTER_INFO("Parsing header");
+
+    SipsterSipHeader * header = sipster_request_parse_header(ct);
+    EXPECT_TRUE(header);
+    EXPECT_EQ(SIP_HEADER_CONTENT_TYPE, header->headerId);
+    EXPECT_STREQ("Content-Type", header->headerName);
+
+    SipsterSipHeaderContentType * headerCt = (SipsterSipHeaderContentType *) header;
+    EXPECT_STREQ("application/sdp", headerCt->contentType);
+
+    SipsterSipParameter * param = headerCt->header.first;
+    EXPECT_STREQ("charset", param->name);
+    EXPECT_STREQ("ISO-8859-4", param->value);
+    EXPECT_FALSE(param->next);
+
+    char * pHeader = sipster_request_print_header(header);
+    SIPSTER_DEBUG(pHeader);
+    EXPECT_STREQ(ct, pHeader);
+}
+
+TEST(test_request_parse_print, test_request_parse_print_1) {
+    int result = 0;
+
+    SIPSTER_DEBUG("PARSING REQUEST");
+
+    string invite = "";
+            invite = invite + "INVITE sip:bob@biloxi.com SIP/2.0\r\n"+
+            "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n"+
+            "To: Bob <bob@biloxi.com>\r\n"+
+            "From: Alice <alice@atlanta.com>;tag=1928301774\r\n"+
+//            "Call-ID: a84b4c76e66710\r\n"+
+            "CSeq: 314159 INVITE\r\n"+
+//            "Max-Forwards: 70\r\n"+
+//            "Date: Thu, 21 Feb 2002 13:02:03 GMT\r\n"+
+            "Contact: <sip:alice@pc33.atlanta.com>\r\n"+
+            "Content-Type: application/sdp\r\n"+
+            "Content-Length: 147\r\n"+
+            "\r\n"+
+            "v=0\r\n"+
+            "o=UserA 2890844526 2890844526 IN IP4 here.com\r\n"+
+            "s=Session SDP\r\n"+
+            "c=IN IP4 pc33.atlanta.com\r\n"+
+            "t=0 0\r\n"+
+            "m=audio 49172 RTP/AVP 0\r\n"+
+            "a=rtpmap:0 PCMU/8000\r\n"+
+            "\r\n";
+
+    printf("%s\n", invite.c_str());
+
+
+    SipsterSipRequest * req = sipster_request_parse(invite.c_str(), invite.length(), &result);
+    EXPECT_TRUE(req);
+    EXPECT_EQ(SIP_METHOD_INVITE, req->requestLine.method.methodId);
+
+    EXPECT_TRUE(req->firstHeader);
+    EXPECT_TRUE(req->lastHeader);
+    EXPECT_TRUE(req->content);
+
+    EXPECT_EQ((unsigned int) 147, req->content->length);
+    EXPECT_STREQ("application/sdp", req->content->contentType);
+
+
+
+//    SipsterSipHeader * header = sipster_request_parse_header(ct);
+//    EXPECT_TRUE(header);
+//    EXPECT_EQ(SIP_HEADER_CONTENT_TYPE, header->headerId);
+//    EXPECT_STREQ("Content-Type", header->headerName);
+
+//    SipsterSipHeaderContentType * headerCt = (SipsterSipHeaderContentType *) header;
+//    EXPECT_STREQ("application/sdp", headerCt->contentType);
+
+//    SipsterSipParameter * param = headerCt->header.first;
+//    EXPECT_STREQ("charset", param->name);
+//    EXPECT_STREQ("ISO-8859-4", param->value);
+//    EXPECT_FALSE(param->next);
+
+//    char * pHeader = sipster_request_print_header(header);
+//    SIPSTER_DEBUG(pHeader);
+//    EXPECT_STREQ(ct, pHeader);
+}

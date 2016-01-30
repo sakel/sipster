@@ -122,6 +122,12 @@ const char * const status_phrases[] = {"Trying", "Ringing", "Call Forwarding", "
 typedef char * SipsterSipRequestUri;
 typedef char * SipsterSipVersion;
 
+typedef struct _SipsterSipContentBody {
+    char contentType[150];
+    size_t length;
+    char data[1500];
+} SipsterSipContentBody;
+
 typedef struct _SipsterSipRequestMnemonic {
     const char * method;
     SipsterSipMethodEnum methodId;
@@ -136,7 +142,9 @@ typedef struct _SipsterSipRequestLine {
 
 typedef struct _SipsterSipRequest {
     SipsterSipRequestLine requestLine;
-
+    SipsterSipHeaderLeaf * firstHeader;
+    SipsterSipHeaderLeaf * lastHeader;
+    SipsterSipContentBody * content;
 } SipsterSipRequest;
 
 typedef struct _SipsterSipResponseMnemonic {
@@ -155,17 +163,19 @@ typedef struct _SipsterSipResponse {
     SipsterSipResponseLine responseLine;
 } SipsterSipResponse;
 
+SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *result);
+
 SipsterSipRequest *sipster_request_create();
 void sipster_request_destroy(SipsterSipRequest *request);
 
 SipsterSipResponse *sipster_response_create();
 void sipster_response_destroy(SipsterSipResponse *response);
 
-int sipster_request_parse_line(char * input, SipsterSipRequest * sipRequest);
+int sipster_request_parse_line(const char * input, SipsterSipRequest * sipRequest);
 SipsterSipHeader * sipster_request_parse_header(const char * input);
 char * sipster_request_print_header(SipsterSipHeader * header);
 
-int sipster_response_parse_line(char * input, SipsterSipResponse * sipResponse);
+int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResponse);
 SipsterSipHeader * sipster_response_parse_header(const char * input);
 char * sipster_response_print_header(SipsterSipHeader * header);
 

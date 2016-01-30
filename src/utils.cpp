@@ -17,7 +17,7 @@ string nextToken(string input, string delimiter, std::size_t *pos) {
         return "";
     }
     if(new_pos != std::string::npos) {
-        *pos = *pos + 1;
+        *pos = *pos + delimiter.size();
     }
 
     return token;

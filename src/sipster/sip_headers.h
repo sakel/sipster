@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#define NULL_STRING "\0"
 
 typedef struct _SipsterSipHeaderAddress SipsterSipHeaderAddress;
 typedef struct _SipsterSipHeaderVia SipsterSipHeaderVia;
@@ -12,6 +13,9 @@ typedef struct _SipsterSipParameter SipsterSipParameter;
 typedef struct _SipsterSipHeaderAddress SipsterSipHeaderTo;
 typedef struct _SipsterSipHeaderAddress SipsterSipHeaderFrom;
 typedef struct _SipsterSipHeaderCSeq SipsterSipHeaderCSeq;
+typedef struct _SipsterSipHeaderLeaf SipsterSipHeaderLeaf;
+typedef struct _SipsterSipHeaderContentLength SipsterSipHeaderContentLength;
+typedef struct _SipsterSipHeaderContentType SipsterSipHeaderContentType;
 
 typedef enum _SipsterSipHeaderEnum {
     SIP_HEADER_TO = 0,
@@ -148,6 +152,21 @@ struct _SipsterSipHeaderCSeq {
     char requestMethod[10];
 };
 
+struct _SipsterSipHeaderContentLength {
+    SipsterSipHeader header;
+    unsigned int length;
+};
+
+struct _SipsterSipHeaderContentType {
+    SipsterSipHeaderWithParams header;
+    char contentType[150];
+};
+
+struct _SipsterSipHeaderLeaf {
+    SipsterSipHeader * header;
+    SipsterSipHeaderLeaf * next;
+};
+
 typedef SipsterSipHeader* (*ParseSipHeader)(SipsterSipHeaderEnum, const char *);
 typedef char* (*PrintSipHeader)(SipsterSipHeader *);
 typedef void(*DestroySipHeader)(SipsterSipHeader *);
@@ -176,20 +195,27 @@ void via_destroy(SipsterSipHeader * header);
 SipsterSipHeader* cseq_parse(SipsterSipHeaderEnum, const char *);
 char* cseq_print(SipsterSipHeader * header);
 
+SipsterSipHeader* cl_parse(SipsterSipHeaderEnum, const char *);
+char* cl_print(SipsterSipHeader * header);
+
+SipsterSipHeader* ct_parse(SipsterSipHeaderEnum, const char *);
+char* ct_print(SipsterSipHeader * header);
+void ct_destroy(SipsterSipHeader * header);
+
 #define SIPSTER_SIP_HEADER_MAP_SIZE 12
 const SipsterSipHeaderMap header_prototypes[] = {
     {"To", "t", SIP_HEADER_TO, addr_parse, addr_print, addr_destroy},
     {"From", "f", SIP_HEADER_FROM, addr_parse, addr_print, addr_destroy},
     {"Via", "v", SIP_HEADER_VIA, via_parse, via_print, via_destroy},
-    {"CSeq", "\0", SIP_HEADER_CSEQ, cseq_parse, cseq_print, no_destroy},
-    {"Accept", "\0", SIP_HEADER_ACCEPT, no_parse, no_print, no_destroy},
-    {"Content-Length", "l", SIP_HEADER_CONTENT_LENGTH, no_parse, no_print, no_destroy},
-    {"Content-Type", "c", SIP_HEADER_CONTENT_TYPE, no_parse, no_print, no_destroy},
-    {"Contact", "m", SIP_HEADER_CONTACT, no_parse, no_print, no_destroy},
+    {"CSeq", NULL_STRING, SIP_HEADER_CSEQ, cseq_parse, cseq_print, no_destroy},
+    {"Accept", NULL_STRING, SIP_HEADER_ACCEPT, no_parse, no_print, no_destroy},
+    {"Content-Length", "l", SIP_HEADER_CONTENT_LENGTH, cl_parse, cl_print, no_destroy},
+    {"Content-Type", "c", SIP_HEADER_CONTENT_TYPE, ct_parse, ct_print, ct_destroy},
+    {"Contact", "m", SIP_HEADER_CONTACT, addr_parse, addr_print, addr_destroy},
     {"Call-ID", "i", SIP_HEADER_CALL_ID, no_parse, no_print, no_destroy},
-    {"Call-Info", "\0", SIP_HEADER_CALL_INFO, no_parse, no_print, no_destroy},
-    {"User-Agent", "\0", SIP_HEADER_USER_AGENT, no_parse, no_print, no_destroy},
-    {"Session-ID", "\0", SIP_HEADER_SESSION_ID, no_parse, no_print, no_destroy}
+    {"Call-Info", NULL_STRING, SIP_HEADER_CALL_INFO, no_parse, no_print, no_destroy},
+    {"User-Agent", NULL_STRING, SIP_HEADER_USER_AGENT, no_parse, no_print, no_destroy},
+    {"Session-ID", NULL_STRING, SIP_HEADER_SESSION_ID, no_parse, no_print, no_destroy}
 };
 
 const char * const header_names[] = {"To", "From", "Via", "CSeq", "Accept", "Content-Length", "Content-Type", "Call-ID", "Contact", "Contact", "Call-Info", "User-Agent", "Session-ID",
@@ -208,6 +234,9 @@ void sipster_sip_header_destroy(SipsterSipHeader * header);
 
 SipsterSipParameter * sipster_sip_parameter_create(const char * key, const char * value);
 void sipster_sip_parameter_destroy(SipsterSipParameter * param);
+
+SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf ** leaf, SipsterSipHeader * header);
+void sipster_append_destroy(SipsterSipHeaderLeaf * leaf);
 
 #endif // SIP_HEADERS_H
 

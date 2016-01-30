@@ -7,7 +7,7 @@ using namespace std;
 
 
 
-int sipster_request_parse_line(char * input, SipsterSipRequest * sipRequest) {
+int sipster_request_parse_line(const char * input, SipsterSipRequest * sipRequest) {
     string inputData;
     std::size_t pos = 0;
     int i;
@@ -38,7 +38,7 @@ int sipster_request_parse_line(char * input, SipsterSipRequest * sipRequest) {
 }
 
 SipsterSipRequest *sipster_request_create() {
-    return (SipsterSipRequest *) malloc(sizeof(SipsterSipRequest));
+    return (SipsterSipRequest *) calloc(1, sizeof(SipsterSipRequest));
 }
 
 void sipster_request_destroy(SipsterSipRequest *request) {
@@ -54,7 +54,7 @@ void sipster_request_destroy(SipsterSipRequest *request) {
 }
 
 SipsterSipResponse *sipster_response_create() {
-    return (SipsterSipResponse *) malloc(sizeof(SipsterSipResponse));
+    return (SipsterSipResponse *) calloc(1, sizeof(SipsterSipResponse));
 }
 
 void sipster_response_destroy(SipsterSipResponse *response) {
@@ -67,7 +67,7 @@ void sipster_response_destroy(SipsterSipResponse *response) {
 
 }
 
-int sipster_response_parse_line(char * input, SipsterSipResponse * sipResponse) {
+int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResponse) {
     // Status-Line  =  SIP-Version SP Status-Code SP Reason-Phrase CRLF
     string inputData;
     std::size_t pos = 0;
@@ -130,4 +130,69 @@ SipsterSipHeader * sipster_response_parse_header(const char * input) {
 
 char * sipster_response_print_header(SipsterSipHeader * header) {
     return sipster_request_print_header(header);
+}
+
+SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *result) {
+    int res = -1;
+    std::size_t pos = 0;
+    SipsterSipHeaderContentLength * content_length;
+    SipsterSipHeaderContentType * content_type;
+
+    content_length = NULL;
+    content_type = NULL;
+
+    SipsterSipRequest * request = sipster_request_create();
+
+    string line = nextToken(input, "\r\n", &pos);
+
+    res = sipster_request_parse_line(line.c_str(), request);
+    if(res != 0) {
+        sipster_request_destroy(request);
+        goto completed;
+    }
+
+    line = nextToken(input, "\r\n", &pos);
+    SIPSTER_DEBUG(line.c_str());
+
+    while(!line.empty()) {
+
+        //TODO --> should validate data
+        SipsterSipHeader * header = sipster_request_parse_header(line.c_str());
+
+        //TODO --> should proceed only if data is valid
+
+        switch(header->headerId) {
+        case SIP_HEADER_CONTENT_LENGTH:
+            content_length = (SipsterSipHeaderContentLength *) header;
+            break;
+        case SIP_HEADER_CONTENT_TYPE:
+            content_type = (SipsterSipHeaderContentType *) header;
+            break;
+        default:
+            break;
+        }
+
+        request->lastHeader = sipster_append_new_header(&request->firstHeader, header);
+        line = nextToken(input, "\r\n", &pos);
+    }
+
+    if(content_length) {
+        if(content_length->length > 0 && pos != std::string::npos && pos+content_length->length <= size) {
+            //TODO read body
+            SipsterSipContentBody * body = (SipsterSipContentBody *) calloc(1, sizeof(SipsterSipContentBody));
+            body->length = content_length->length;
+            if(content_type) {
+                strncpy(body->contentType, content_type->contentType, strlen(content_type->contentType));
+            }
+            string d = getRest(input, &pos);
+            strncpy(body->data, d.c_str(), body->length);
+
+            request->content = body;
+        }
+    }
+
+
+completed:
+    *result = res;
+    return request;
 }
