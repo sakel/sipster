@@ -2,7 +2,7 @@ set(include_dir ${PROJECT_SOURCE_DIR}/src)
 
 include_directories("${include_dir}")
 
-set(HEADER_FILES ${include_dir}/sipster/sipster.h ${include_dir}/sipster/log.h ${include_dir}/sipster/sip.h ${include_dir}/sipster/sip_headers.h)
+set(HEADER_FILES ${include_dir}/sipster/sipster.h ${include_dir}/sipster/log.h ${include_dir}/sipster/sip.h ${include_dir}/sipster/sip_headers.h ${include_dir}/sipster/sip_enums.h)
 
 set(sources sipster.cpp log.cpp sip.cpp utils.cpp utils.h sip_headers.cpp)
 

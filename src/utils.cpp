@@ -29,12 +29,21 @@ string getRest(string input, std::size_t *pos) {
         return "";
     }
 
-    string token = input.substr(*pos, std::string::npos);
+    string token = input.substr(*pos, input.length()-*pos);
     if(token.empty())
         return "";
 
     *pos = std::string::npos;
 
     return token;
+}
+
+void * sipster_allocator(size_t size) {
+    return calloc(1, size);
+}
+
+void sipster_free(void * ptr) {
+    if(ptr)
+        free(ptr);
 }
 

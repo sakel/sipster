@@ -85,7 +85,7 @@ SipsterSipHeader* addr_parse(SipsterSipHeaderEnum id, const char * input) {
 
 char* addr_print(SipsterSipHeader * header) {
     SipsterSipHeaderAddress * addr = (SipsterSipHeaderAddress *) header;
-    char output[300];
+    char * output;
     string params = "";
     const char * const format = "%s: %s%s";
     SipsterSipParameter * param = addr->header.first;
@@ -94,9 +94,11 @@ char* addr_print(SipsterSipHeader * header) {
         param = param->next;
     }
 
-    sprintf(output, format, addr->header.header.headerName, addr->address, params.c_str());
+    output = (char *) sipster_allocator(300);
 
-    return strdup(output);
+    snprintf(output, 300, format, addr->header.header.headerName, addr->address, params.c_str());
+
+    return output;
 }
 
 
@@ -121,7 +123,7 @@ SipsterSipHeader* via_parse(SipsterSipHeaderEnum id, const char * input) {
 
 char* via_print(SipsterSipHeader * header) {
     SipsterSipHeaderVia * via = (SipsterSipHeaderVia *) header;
-    char output[300];
+    char *output;
     string params = "";
     const char * const format = "%s: %s %s%s";
     SipsterSipParameter * param = via->header.first;
@@ -130,9 +132,11 @@ char* via_print(SipsterSipHeader * header) {
         param = param->next;
     }
 
-    sprintf(output, format, via->header.header.headerName, via->protocol, via->address, params.c_str());
+    output = (char *) sipster_allocator(300);
 
-    return strdup(output);
+    snprintf(output, 300, format, via->header.header.headerName, via->protocol, via->address, params.c_str());
+
+    return output;
 }
 
 void via_destroy(SipsterSipHeader * header) {
@@ -140,6 +144,7 @@ void via_destroy(SipsterSipHeader * header) {
 }
 
 SipsterSipHeader* cseq_parse(SipsterSipHeaderEnum id, const char * input) {
+    int i = 0;
     std::size_t pos = 0;
     SipsterSipHeaderCSeq * cseq_header = (SipsterSipHeaderCSeq *) init_basic_header(id, sizeof(SipsterSipHeaderCSeq));
     SIPSTER_DEBUG(cseq_header->header.headerName);
@@ -147,17 +152,28 @@ SipsterSipHeader* cseq_parse(SipsterSipHeaderEnum id, const char * input) {
     cseq_header->seq = atol(seqString.c_str());
 
     string reqMethod = nextToken(input, " ", &pos);
-    strncpy(cseq_header->requestMethod, reqMethod.c_str(), reqMethod.length() +1);
+    //strncpy(cseq_header->requestMethod, reqMethod.c_str(), reqMethod.length() +1);
+
+    for(i = 0; i < NUM_SIP_METHODS; i++) {
+        if(reqMethod == method_names[i]) {
+            cseq_header->requestMethod = method_names[i];
+            cseq_header->methodId = method_ids[i];
+            break;
+        }
+    }
+
     return (SipsterSipHeader *) cseq_header;
 }
 
 char* cseq_print(SipsterSipHeader * header) {
     SipsterSipHeaderCSeq * cseq_header = (SipsterSipHeaderCSeq *) header;
-    char output[60];
+    char *output;
     const char * const format = "%s: %lu %s";
-    sprintf(output, format, cseq_header->header.headerName, cseq_header->seq, cseq_header->requestMethod);
 
-    return strdup(output);
+    output = (char *) sipster_allocator(60);
+    snprintf(output, 60, format, cseq_header->header.headerName, cseq_header->seq, cseq_header->requestMethod);
+
+    return output;
 }
 
 SipsterSipHeader* cl_parse(SipsterSipHeaderEnum id, const char * input) {
@@ -174,12 +190,38 @@ SipsterSipHeader* cl_parse(SipsterSipHeaderEnum id, const char * input) {
 
 char* cl_print(SipsterSipHeader * header) {
     SipsterSipHeaderContentLength * cl_header = (SipsterSipHeaderContentLength *) header;
-    char output[60];
+    char * output;
     const char * const format = "%s: %u";
-    sprintf(output, format, cl_header->header.headerName, cl_header->length);
 
-    return strdup(output);
+    output = (char *) sipster_allocator(60);
+    snprintf(output, 60, format, cl_header->header.headerName, cl_header->length);
+
+    return output;
 }
+
+SipsterSipHeader* ci_parse(SipsterSipHeaderEnum id, const char * input) {
+    std::size_t pos = 0;
+    SipsterSipHeaderCallID * ci_header = (SipsterSipHeaderCallID *) init_basic_header(id, sizeof(SipsterSipHeaderCallID));
+
+    SIPSTER_DEBUG(ci_header->header.headerName);
+
+    string dataString = getRest(input, &pos);
+    strncpy(ci_header->data, dataString.c_str(), dataString.length()+1);
+
+    return (SipsterSipHeader *) ci_header;
+}
+
+char* ci_print(SipsterSipHeader * header) {
+    SipsterSipHeaderCallID * ci_header = (SipsterSipHeaderCallID *) header;
+    char * output;
+    const char * const format = "%s: %s";
+
+    output = (char *) sipster_allocator(60);
+    snprintf(output, 60, format, ci_header->header.headerName, ci_header->data);
+
+    return output;
+}
+
 
 SipsterSipHeader* ct_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
@@ -199,7 +241,7 @@ SipsterSipHeader* ct_parse(SipsterSipHeaderEnum id, const char * input) {
 
 char* ct_print(SipsterSipHeader * header) {
     SipsterSipHeaderContentType * ct = (SipsterSipHeaderContentType *) header;
-    char output[300];
+    char *output;
     string params = "";
     const char * const format = "%s: %s%s";
     SipsterSipParameter * param = ct->header.first;
@@ -207,8 +249,8 @@ char* ct_print(SipsterSipHeader * header) {
         params = params + ";" + param->name + "=" + param->value;
         param = param->next;
     }
-
-    sprintf(output, format, ct->header.header.headerName, ct->contentType, params.c_str());
+    output = (char *) sipster_allocator(300);
+    snprintf(output, 300, format, ct->header.header.headerName, ct->contentType, params.c_str());
 
     return strdup(output);
 }
@@ -218,19 +260,19 @@ void ct_destroy(SipsterSipHeader * header) {
 }
 
 SipsterSipHeader * sipster_sip_header_create(size_t size) {
-    SipsterSipHeader * header = (SipsterSipHeader *) malloc(size);
+    SipsterSipHeader * header = (SipsterSipHeader *) sipster_allocator(size);
     return header;
 }
 
 void sipster_sip_header_destroy(SipsterSipHeader * header) {
     if(header) {
         header_prototypes[header->headerId].destroy(header);
-        free(header);
+        sipster_free(header);
     }
 }
 
 SipsterSipParameter * sipster_sip_parameter_create(const char * key, const char * value) {
-    SipsterSipParameter * param = (SipsterSipParameter *) calloc(1, sizeof(SipsterSipParameter));
+    SipsterSipParameter * param = (SipsterSipParameter *) sipster_allocator(sizeof(SipsterSipParameter));
     strncpy(param->name, key, strlen(key)+1);
     strncpy(param->value, value, strlen(value)+1);
 
@@ -239,18 +281,17 @@ SipsterSipParameter * sipster_sip_parameter_create(const char * key, const char 
 
 void sipster_sip_parameter_destroy(SipsterSipParameter * param) {
     if(param) {
-        free(param);
+        sipster_free(param);
     }
 }
 
-SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf ** leaf, SipsterSipHeader * header) {
-    SipsterSipHeaderLeaf * new_leaf = (SipsterSipHeaderLeaf *) calloc(1, sizeof(SipsterSipHeaderLeaf));
+SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf *leaf, SipsterSipHeader * header) {
+    SipsterSipHeaderLeaf * new_leaf = (SipsterSipHeaderLeaf *) sipster_allocator(sizeof(SipsterSipHeaderLeaf));
     new_leaf->header = header;
 
-    if(!*leaf) {
-        *leaf = new_leaf;
-    } else {
-        (*leaf)->next = new_leaf;
+    if(leaf) {
+        leaf->next = new_leaf;
+        new_leaf->count = leaf->count + 1;
     }
 
     return new_leaf;
@@ -260,7 +301,7 @@ void sipster_append_destroy(SipsterSipHeaderLeaf * leaf) {
     while(leaf) {
         SipsterSipHeaderLeaf * next_leaf = leaf->next;
         sipster_sip_header_destroy(leaf->header);
-        free(leaf);
+        sipster_free(leaf);
         leaf = next_leaf;
     }
 }

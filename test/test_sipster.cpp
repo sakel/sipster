@@ -236,13 +236,13 @@ TEST(test_request_parse_print, test_request_parse_print_1) {
             "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n"+
             "To: Bob <bob@biloxi.com>\r\n"+
             "From: Alice <alice@atlanta.com>;tag=1928301774\r\n"+
-//            "Call-ID: a84b4c76e66710\r\n"+
+            "Call-ID: a84b4c76e66710\r\n"+
             "CSeq: 314159 INVITE\r\n"+
 //            "Max-Forwards: 70\r\n"+
 //            "Date: Thu, 21 Feb 2002 13:02:03 GMT\r\n"+
             "Contact: <sip:alice@pc33.atlanta.com>\r\n"+
             "Content-Type: application/sdp\r\n"+
-            "Content-Length: 147\r\n"+
+            "Content-Length: 150\r\n"+
             "\r\n"+
             "v=0\r\n"+
             "o=UserA 2890844526 2890844526 IN IP4 here.com\r\n"+
@@ -263,26 +263,65 @@ TEST(test_request_parse_print, test_request_parse_print_1) {
     EXPECT_TRUE(req->firstHeader);
     EXPECT_TRUE(req->lastHeader);
     EXPECT_TRUE(req->content);
+    EXPECT_EQ(8, req->lastHeader->count+1);
 
-    EXPECT_EQ((unsigned int) 147, req->content->length);
+    EXPECT_EQ((unsigned int) 150, req->content->length);
     EXPECT_STREQ("application/sdp", req->content->contentType);
 
+    SIPSTER_DEBUG("==============================================================");
 
+    SipsterSipMessagePrint * print = sipster_request_print(req);
+    EXPECT_TRUE(print);
+    EXPECT_TRUE(print->output);
+    SIPSTER_DEBUG(print->output);
+    string output = print->output;
+    EXPECT_EQ(invite, output);
+}
 
-//    SipsterSipHeader * header = sipster_request_parse_header(ct);
-//    EXPECT_TRUE(header);
-//    EXPECT_EQ(SIP_HEADER_CONTENT_TYPE, header->headerId);
-//    EXPECT_STREQ("Content-Type", header->headerName);
+TEST(test_response_parse_print, test_response_parse_print_1) {
+    int result = 0;
+    string response = "";
+    response = response +
+                "SIP/2.0 200 OK\r\n"+
+                "Via: SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bKnashds8;received=192.0.2.3\r\n"+
+                "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1;received=192.0.2.2\r\n"+
+                "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds;received=192.0.2.1\r\n"+
+                "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf\r\n"+
+                "From: Alice <sip:alice@atlanta.com>;tag=1928301774\r\n"+
+                "Call-ID: a84b4c76e66710@pc33.atlanta.com\r\n"+
+                "CSeq: 314159 INVITE\r\n"+
+                "Contact: <sip:bob@192.0.2.4>\r\n"+
+                "Content-Type: application/sdp\r\n"+
+                "Content-Length: 150\r\n"+
+                "\r\n"+
+                "v=0\r\n"+
+                "o=UserA 2890844526 2890844526 IN IP4 here.com\r\n"+
+                "s=Session SDP\r\n"+
+                "c=IN IP4 pc33.atlanta.com\r\n"+
+                "t=0 0\r\n"+
+                "m=audio 49172 RTP/AVP 0\r\n"+
+                "a=rtpmap:0 PCMU/8000\r\n"+
+                "\r\n";
 
-//    SipsterSipHeaderContentType * headerCt = (SipsterSipHeaderContentType *) header;
-//    EXPECT_STREQ("application/sdp", headerCt->contentType);
+    SipsterSipResponse * res = sipster_response_parse(response.c_str(), response.length(), &result);
 
-//    SipsterSipParameter * param = headerCt->header.first;
-//    EXPECT_STREQ("charset", param->name);
-//    EXPECT_STREQ("ISO-8859-4", param->value);
-//    EXPECT_FALSE(param->next);
+    EXPECT_TRUE(res);
+    EXPECT_EQ(SIP_STATUS_200_OK, res->responseLine.status.status);
 
-//    char * pHeader = sipster_request_print_header(header);
-//    SIPSTER_DEBUG(pHeader);
-//    EXPECT_STREQ(ct, pHeader);
+    EXPECT_TRUE(res->firstHeader);
+    EXPECT_TRUE(res->lastHeader);
+    EXPECT_TRUE(res->content);
+    EXPECT_EQ(10, res->lastHeader->count+1);
+
+    EXPECT_EQ((unsigned int) 150, res->content->length);
+    EXPECT_STREQ("application/sdp", res->content->contentType);
+
+    SIPSTER_DEBUG("==============================================================");
+
+    SipsterSipMessagePrint * print = sipster_response_print(res);
+    EXPECT_TRUE(print);
+    EXPECT_TRUE(print->output);
+    SIPSTER_DEBUG(print->output);
+    string output = print->output;
+    EXPECT_EQ(response, output);
 }

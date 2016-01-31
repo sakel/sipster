@@ -2,6 +2,7 @@
 #define SIP_HEADERS_H
 
 #include <stdlib.h>
+#include <sipster/sip_enums.h>
 
 #define NULL_STRING "\0"
 
@@ -16,101 +17,7 @@ typedef struct _SipsterSipHeaderCSeq SipsterSipHeaderCSeq;
 typedef struct _SipsterSipHeaderLeaf SipsterSipHeaderLeaf;
 typedef struct _SipsterSipHeaderContentLength SipsterSipHeaderContentLength;
 typedef struct _SipsterSipHeaderContentType SipsterSipHeaderContentType;
-
-typedef enum _SipsterSipHeaderEnum {
-    SIP_HEADER_TO = 0,
-    SIP_HEADER_FROM,
-    SIP_HEADER_VIA,
-    SIP_HEADER_CSEQ,
-    SIP_HEADER_ACCEPT,
-    SIP_HEADER_CONTENT_LENGTH,
-    SIP_HEADER_CONTENT_TYPE,
-    SIP_HEADER_CONTACT,
-    SIP_HEADER_CALL_ID,
-    SIP_HEADER_CALL_INFO,
-    SIP_HEADER_ACCEPT_CONTACT,
-    SIP_HEADER_ACCEPT_ENCODING,
-    SIP_HEADER_ACCEPT_LANGUAGE,
-    SIP_HEADER_ACCEPT_RESOURCE_PRIORITY,
-    SIP_HEADER_ALERT_INFO,
-    SIP_HEADER_ALLOW,
-    SIP_HEADER_ALLOW_EVENTS,
-    SIP_HEADER_ANSWER_MODE,
-    SIP_HEADER_AUTHENTICATION_INFO,
-    SIP_HEADER_AUTHORIZATION,
-    SIP_HEADER_CONTENT_DISPOSITION,
-    SIP_HEADER_CONTENT_ENCODING,
-    SIP_HEADER_CONTENT_LANGUAGE,
-    SIP_HEADER_DATE,
-    SIP_HEADER_ERROR_INFO,
-    SIP_HEADER_EVENT,
-    SIP_HEADER_EXPIRES,
-    SIP_HEADER_FEATURE_CAPS,
-    SIP_HEADER_FLOW_TIMER,
-    SIP_HEADER_GEOLOCATION,
-    SIP_HEADER_GEOLOCATION_ERROR,
-    SIP_HEADER_GEOLOCATION_ROUTING,
-    SIP_HEADER_HISTORY_INFO,
-    SIP_HEADER_IDENTITY,
-    SIP_HEADER_IDENTITY_INFO,
-    SIP_HEADER_INFO_PACKAGE,
-    SIP_HEADER_IN_REPLY_TO,
-    SIP_HEADER_JOIN,
-    SIP_HEADER_MAX_BREADTH,
-    SIP_HEADER_MAX_FORWARDS,
-    SIP_HEADER_MIME_VERSION,
-    SIP_HEADER_MIN_EXPIRES,
-    SIP_HEADER_MIN_SE,
-    SIP_HEADER_ORGANIZATION,
-    SIP_HEADER_PATH,
-    SIP_HEADER_PERMISSION_MISSING,
-    SIP_HEADER_POLICY_CONTACT,
-    SIP_HEADER_POLICY_ID,
-    SIP_HEADER_PRIORITY,
-    SIP_HEADER_PRIVACY,
-    SIP_HEADER_PRIV_ANSWER_MODE,
-    SIP_HEADER_PROXY_AUTHENTICATE,
-    SIP_HEADER_PROXY_AUTHORIZATION,
-    SIP_HEADER_PROXY_REQUIRE,
-    SIP_HEADER_RACK,
-    SIP_HEADER_REASON,
-    SIP_HEADER_RECORD_ROUTE,
-    SIP_HEADER_RECV_INFO,
-    SIP_HEADER_REFER_EVENTS_AT,
-    SIP_HEADER_REFER_SUB,
-    SIP_HEADER_REFER_TO,
-    SIP_HEADER_REFERRED_BY,
-    SIP_HEADER_REJECT_CONTACT,
-    SIP_HEADER_REPLACES,
-    SIP_HEADER_REPLY_TO,
-    SIP_HEADER_REQUEST_DISPOSITION,
-    SIP_HEADER_REQUIRE,
-    SIP_HEADER_RESOURCE_PRIORITY,
-    SIP_HEADER_RETRY_AFTER,
-    SIP_HEADER_ROUTE,
-    SIP_HEADER_RSEQ,
-    SIP_HEADER_SECURITY_CLIENT,
-    SIP_HEADER_SECURITY_SERVER,
-    SIP_HEADER_SECURITY_VERIFY,
-    SIP_HEADER_SERVER,
-    SIP_HEADER_SERVICE_ROUTE,
-    SIP_HEADER_SESSION_EXPIRES,
-    SIP_HEADER_SESSION_ID,
-    SIP_HEADER_SIP_ETAG,
-    SIP_HEADER_SIP_IF_MATCH,
-    SIP_HEADER_SUBJECT,
-    SIP_HEADER_SUBSCRIPTION_STATE,
-    SIP_HEADER_SUPPORTED,
-    SIP_HEADER_SUPPRESS_IF_MATCH,
-    SIP_HEADER_TARGET_DIALOG,
-    SIP_HEADER_TIMESTAMP,
-    SIP_HEADER_TRIGGER_CONSENT,
-    SIP_HEADER_UNSUPPORTED,
-    SIP_HEADER_USER_AGENT,
-    SIP_HEADER_USER_TO_USER,
-    SIP_HEADER_WARNING,
-    SIP_HEADER_WWW_AUTHENTICATE
-} SipsterSipHeaderEnum;
+typedef struct _SipsterSipHeaderString SipsterSipHeaderCallID;
 
 struct _SipsterSipParameter {
     char name[20];
@@ -149,7 +56,8 @@ struct _SipsterSipHeaderVia {
 struct _SipsterSipHeaderCSeq {
     SipsterSipHeader header;
     unsigned long seq;
-    char requestMethod[10];
+    const char *requestMethod;
+    SipsterSipMethodEnum methodId;
 };
 
 struct _SipsterSipHeaderContentLength {
@@ -162,7 +70,13 @@ struct _SipsterSipHeaderContentType {
     char contentType[150];
 };
 
+struct _SipsterSipHeaderString {
+    SipsterSipHeader header;
+    char data[300];
+};
+
 struct _SipsterSipHeaderLeaf {
+    unsigned short count;
     SipsterSipHeader * header;
     SipsterSipHeaderLeaf * next;
 };
@@ -202,6 +116,9 @@ SipsterSipHeader* ct_parse(SipsterSipHeaderEnum, const char *);
 char* ct_print(SipsterSipHeader * header);
 void ct_destroy(SipsterSipHeader * header);
 
+SipsterSipHeader* ci_parse(SipsterSipHeaderEnum, const char *);
+char* ci_print(SipsterSipHeader * header);
+
 #define SIPSTER_SIP_HEADER_MAP_SIZE 12
 const SipsterSipHeaderMap header_prototypes[] = {
     {"To", "t", SIP_HEADER_TO, addr_parse, addr_print, addr_destroy},
@@ -212,7 +129,7 @@ const SipsterSipHeaderMap header_prototypes[] = {
     {"Content-Length", "l", SIP_HEADER_CONTENT_LENGTH, cl_parse, cl_print, no_destroy},
     {"Content-Type", "c", SIP_HEADER_CONTENT_TYPE, ct_parse, ct_print, ct_destroy},
     {"Contact", "m", SIP_HEADER_CONTACT, addr_parse, addr_print, addr_destroy},
-    {"Call-ID", "i", SIP_HEADER_CALL_ID, no_parse, no_print, no_destroy},
+    {"Call-ID", "i", SIP_HEADER_CALL_ID, ci_parse, ci_print, no_destroy},
     {"Call-Info", NULL_STRING, SIP_HEADER_CALL_INFO, no_parse, no_print, no_destroy},
     {"User-Agent", NULL_STRING, SIP_HEADER_USER_AGENT, no_parse, no_print, no_destroy},
     {"Session-ID", NULL_STRING, SIP_HEADER_SESSION_ID, no_parse, no_print, no_destroy}
@@ -235,7 +152,7 @@ void sipster_sip_header_destroy(SipsterSipHeader * header);
 SipsterSipParameter * sipster_sip_parameter_create(const char * key, const char * value);
 void sipster_sip_parameter_destroy(SipsterSipParameter * param);
 
-SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf ** leaf, SipsterSipHeader * header);
+SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf * leaf, SipsterSipHeader * header);
 void sipster_append_destroy(SipsterSipHeaderLeaf * leaf);
 
 #endif // SIP_HEADERS_H

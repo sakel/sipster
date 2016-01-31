@@ -29,4 +29,6 @@ static inline std::string &trim(std::string &s) {
         return ltrim(rtrim(s));
 }
 
+void * sipster_allocator(size_t size);
+void sipster_free(void * ptr);
 #endif // UTILS_H

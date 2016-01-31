@@ -19,7 +19,7 @@ void sipster_log_set_level_from_env() {
 
 void sipster_log(SipsterLogLevel level, const char * format, ...) {
 
-    char output[200];
+    char output[1000];
 
     if(logLevel < 0) {
         sipster_log_set_level_from_env();
