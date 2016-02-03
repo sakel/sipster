@@ -1,5 +1,7 @@
 #include "utils.h"
 #include <sipster/log.h>
+#include <uuid.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -47,3 +49,43 @@ void sipster_free(void * ptr) {
         free(ptr);
 }
 
+char * sipster_generate_uuid() {
+    uuid_t * uuid;
+    uuid_rc_t rc = uuid_create(&uuid);
+    if(rc != 0) {
+        return NULL;
+    }
+
+    rc = uuid_make(uuid, UUID_MAKE_V1);
+    if(rc != 0) {
+        return NULL;
+    }
+
+    char *output = NULL;
+    size_t len = 0;
+    rc = uuid_export(uuid, UUID_FMT_STR, &output, &len);
+    if(rc != 0) {
+        return NULL;
+    }
+
+    uuid_destroy(uuid);
+
+    return output;
+}
+
+char * sipster_generate_random_string(size_t len) {
+    int i;
+    char * s = (char *) sipster_allocator(len+1);
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    for (i = 0; i < (int)len; ++i) {
+        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    s[len] = 0;
+
+    return s;
+}

@@ -5,24 +5,20 @@
 
 using namespace std;
 
-
-
 int sipster_request_parse_line(const char * input, SipsterSipRequest * sipRequest) {
     string inputData;
     std::size_t pos = 0;
     int i;
 
     if(!input || !sipRequest) {
-        SIPSTER_ERROR("NULL input parameters");
-        return -1;
+        SIPSTER_SIP_ERROR("NULL input parameters");
+        return MESSAGE_ERROR;
     }
 
     inputData = input;
 
     string methodString = nextToken(inputData, " ", &pos);
-    string destinationString = nextToken(inputData, " ", &pos);
-    string versionString = getRest(inputData, &pos);
-
+    sipRequest->requestLine.method.methodId = SIP_METHOD_NONE;
     for(i = 0; i < NUM_SIP_METHODS; i++) {
         if(methodString == method_names[i]) {
             sipRequest->requestLine.method.method = method_names[i];
@@ -30,11 +26,17 @@ int sipster_request_parse_line(const char * input, SipsterSipRequest * sipReques
             break;
         }
     }
+    if(sipRequest->requestLine.method.methodId == SIP_METHOD_NONE) {
+        return MESSAGE_PARSE_ERROR;
+    }
+
+    string destinationString = nextToken(inputData, " ", &pos);
+    string versionString = getRest(inputData, &pos);
 
     sipRequest->requestLine.requestUri = strdup(destinationString.c_str());
     sipRequest->requestLine.version = strdup(versionString.c_str());
 
-    return 0;
+    return OK;
 }
 
 SipsterSipRequest *sipster_request_create() {
@@ -46,9 +48,6 @@ void sipster_request_destroy(SipsterSipRequest *request) {
         if(request->requestLine.requestUri) {
             free(request->requestLine.requestUri);
         }
-        if(request->requestLine.version) {
-            free(request->requestLine.version);
-        }
         sipster_free(request);
     }
 }
@@ -59,9 +58,6 @@ SipsterSipResponse *sipster_response_create() {
 
 void sipster_response_destroy(SipsterSipResponse *response) {
     if(response) {
-        if(response->responseLine.version) {
-            free(response->responseLine.version);
-        }
         sipster_free(response);
     }
 
@@ -74,8 +70,8 @@ int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResp
     int i;
 
     if(!input || !sipResponse) {
-        SIPSTER_ERROR("NULL input parameters");
-        return -1;
+        SIPSTER_SIP_ERROR("NULL input parameters");
+        return MESSAGE_ERROR;
     }
     inputData = input;
 
@@ -84,6 +80,7 @@ int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResp
     string phraseString = getRest(inputData, &pos);
 
     sipResponse->responseLine.version = strdup(versionString.c_str());
+    sipResponse->responseLine.status.statusCode = SIP_STATUS_NONE;
     for(i = 0; i < NUM_SIP_STATUSES; i++) {
         if(atoi(statusCodeString.c_str()) == statuses[i]) {
             sipResponse->responseLine.status.statusCode = statuses[i];
@@ -93,7 +90,11 @@ int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResp
         }
     }
 
-    return 0;
+    if(sipResponse->responseLine.status.statusCode == SIP_STATUS_NONE) {
+        return MESSAGE_PARSE_ERROR;
+    }
+
+    return OK;
 }
 
 SipsterSipHeader * sipster_request_parse_header(const char * input) {
@@ -103,11 +104,11 @@ SipsterSipHeader * sipster_request_parse_header(const char * input) {
     string rest = getRest(input, &pos);
     string cleanRest = ltrim(rest);
 
-    for(i = 0; i < SIPSTER_SIP_HEADER_MAP_SIZE; i++) {
+    for(i = 0; header_prototypes[i].headerId != SIP_HEADER_NONE; i++) {
         const SipsterSipHeaderMap hmap = header_prototypes[i];
         if(headerString.compare(hmap.headerName) == 0
                 || headerString.compare(hmap.shortName) == 0) {
-            SIPSTER_DEBUG("PARSING HEADER %s", hmap.headerName);
+            SIPSTER_SIP_DEBUG("PARSING HEADER %s", hmap.headerName);
             SipsterSipHeader * header = header_prototypes[i].parse(header_prototypes[i].headerId, cleanRest.c_str());
             return header;
         }
@@ -116,7 +117,7 @@ SipsterSipHeader * sipster_request_parse_header(const char * input) {
 }
 
 char * sipster_request_print_header(SipsterSipHeader * header) {
-    SIPSTER_DEBUG("PRINTING HEADER: %s", header->headerName);
+    SIPSTER_SIP_DEBUG("PRINTING HEADER: %s", header->headerName);
     const SipsterSipHeaderMap hmap = header_prototypes[header->headerId];
     char * headerLine = hmap.print(header);
     sipster_sip_header_destroy(header);
@@ -170,7 +171,7 @@ SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *re
     }
 
     line = nextToken(input, "\r\n", &pos);
-    SIPSTER_DEBUG(line.c_str());
+    SIPSTER_SIP_DEBUG(line.c_str());
 
     while(!line.empty()) {
 
@@ -179,26 +180,29 @@ SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *re
 
         //TODO --> should proceed only if data is valid
 
-        switch(header->headerId) {
-        case SIP_HEADER_CONTENT_LENGTH:
-            content_length = (SipsterSipHeaderContentLength *) header;
-            break;
-        case SIP_HEADER_CONTENT_TYPE:
-            content_type = (SipsterSipHeaderContentType *) header;
-            break;
-        default:
-            break;
+        if(header) {
+            switch(header->headerId) {
+            case SIP_HEADER_CONTENT_LENGTH:
+                content_length = (SipsterSipHeaderContentLength *) header;
+                break;
+            case SIP_HEADER_CONTENT_TYPE:
+                content_type = (SipsterSipHeaderContentType *) header;
+                break;
+            default:
+                break;
+            }
+
+            request->lastHeader = sipster_append_new_header(request->lastHeader, header);
+            if(!request->firstHeader) {
+                request->firstHeader = request->lastHeader;
+            }
         }
 
-        request->lastHeader = sipster_append_new_header(request->lastHeader, header);
-        if(!request->firstHeader) {
-            request->firstHeader = request->lastHeader;
-        }
         line = nextToken(input, "\r\n", &pos);
     }
 
     if(content_length) {
-        if(content_length->length > 0 && pos != std::string::npos && pos+content_length->length <= size) {
+        if(content_length->number > 0 && pos != std::string::npos && pos+content_length->number <= size) {
             //TODO read body
             SipsterSipContentBody * body = (SipsterSipContentBody *) sipster_allocator(sizeof(SipsterSipContentBody));
 
@@ -207,7 +211,7 @@ SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *re
             }
             string d = getRest(input, &pos);
             d = ltrim(d);
-            body->length = content_length->length == d.length() ? content_length->length : d.length();
+            body->length = content_length->number == d.length() ? content_length->number : d.length();
             strncpy(body->data, d.c_str(), d.length());
             request->content = body;
         }
@@ -227,7 +231,7 @@ SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
     size_t allocationSize = 500;
 
     if(request->lastHeader) {
-        allocationSize += ((request->lastHeader->count+1)*200);
+        allocationSize += ((request->lastHeader->index+1)*200);
     }
 
     if(request->content) {
@@ -248,7 +252,7 @@ SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
     while(header) {
         char * headerLine = sipster_request_print_header(header->header);
         header->header = NULL;
-        SIPSTER_DEBUG("FOR HEADER printing: %s", headerLine);
+        SIPSTER_SIP_DEBUG("FOR HEADER printing: %s", headerLine);
         len = strlen(headerLine);
         strncpy(output+offset, headerLine, len);
         offset += len;
@@ -295,7 +299,7 @@ SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *
     }
 
     line = nextToken(input, "\r\n", &pos);
-    SIPSTER_DEBUG(line.c_str());
+    SIPSTER_SIP_DEBUG(line.c_str());
 
     while(!line.empty()) {
 
@@ -323,10 +327,10 @@ SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *
     }
 
     if(content_length) {
-        if(content_length->length > 0 && pos != std::string::npos && pos+content_length->length <= size) {
+        if(content_length->number > 0 && pos != std::string::npos && pos+content_length->number <= size) {
             //TODO read body
             SipsterSipContentBody * body = (SipsterSipContentBody *) sipster_allocator(sizeof(SipsterSipContentBody));
-            body->length = content_length->length;
+            body->length = content_length->number;
             if(content_type) {
                 strncpy(body->contentType, content_type->contentType, strlen(content_type->contentType));
             }
@@ -352,7 +356,7 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
     size_t allocationSize = 500;
 
     if(response->lastHeader) {
-        allocationSize += ((response->lastHeader->count+1)*200);
+        allocationSize += ((response->lastHeader->index+1)*200);
     }
 
     if(response->content) {
@@ -373,7 +377,7 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
     while(header) {
         char * headerLine = sipster_request_print_header(header->header);
         header->header = NULL;
-        SIPSTER_DEBUG("FOR HEADER printing: %s", headerLine);
+        SIPSTER_SIP_DEBUG("FOR HEADER printing: %s", headerLine);
         len = strlen(headerLine);
         strncpy(output+offset, headerLine, len);
         offset += len;
@@ -397,5 +401,103 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
     print->output = output;
     print->size = offset;
 
+    SIPSTER_SIP_TRACE("RESPONSE: %s", output);
+
     return print;
+}
+
+int sipster_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response) {
+    SipsterSipMessagePrint * message = sipster_response_print(response);
+    int status = handle->sendResponse(handle, leg, response, message->output, message->size);
+
+    // Maybe do some other magic...
+
+    return status;
+}
+
+int sipster_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request) {
+
+
+    SipsterSipMessagePrint * message = sipster_request_print(request);
+    int status = handle->sendRequest(handle, leg, request, message->output, message->size);
+
+    // Maybe do some other magic...
+
+    return status;
+}
+
+SipsterSipResponse * sipster_request_create_response(SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body) {
+    SipsterSipParameter *toTag = NULL;
+    SipsterSipParameter *rport = NULL;
+    SipsterSipResponse * response = (SipsterSipResponse *) sipster_allocator(sizeof(SipsterSipResponse));
+    response->responseLine.status.status = status;
+    response->responseLine.status.statusCode = statuses[status];
+    response->responseLine.status.reason = status_phrases[status];
+    response->remoteAddr = request->remoteAddr;
+    response->responseLine.version = SIP_PROTOCOL;
+    response->content = body;
+    //only 2xx responses have complete tags RFC3261 -> 13.2.2
+    if(status <= SIP_STATUS_204_NO_NOTIFICATION && status >= SIP_STATUS_200_OK) {
+        toTag = sipster_sip_parameter_create("tag", leg->toTag);
+    }
+    SipsterSipHeaderLeaf * current = request->firstHeader;
+    SipsterSipHeaderWithParams * t = NULL;
+    while(current) {
+        switch(current->header->headerId) {
+        case SIP_HEADER_CONTACT:
+            goto skip_header;
+        case SIP_HEADER_VIA:
+            rport = sipster_sip_parameter_create("rport", "5061");
+            sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) current->header, rport);
+            t = (SipsterSipHeaderWithParams *) current->header;
+            SIPSTER_SIP_DEBUG("%s", t->header.headerName);
+            break;
+        case SIP_HEADER_TO:
+            if(toTag) {
+                SIPSTER_SIP_DEBUG("TO TAG: %s=%s", toTag->name, toTag->value);
+                sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) current->header, toTag);
+            }
+            break;
+        default:
+            break;
+        }
+        response->lastHeader = sipster_append_new_header(response->lastHeader, current->header);
+        if(!response->firstHeader) {
+            response->firstHeader = response->lastHeader;
+        }
+skip_header:
+        current = current->next;
+    }
+
+    int len = 0;
+    if(response->content) {
+        current = sipster_get_header(SIP_HEADER_CONTENT_TYPE, response->firstHeader, response->lastHeader);
+        SipsterSipHeaderContentType * ct = NULL;
+        if(current) {
+            ct = (SipsterSipHeaderContentType *) current->header;
+        } else {
+            ct = (SipsterSipHeaderContentType *) sipster_sip_header_create(sizeof(SipsterSipHeaderContentType));
+            response->lastHeader = sipster_append_new_header(response->lastHeader, (SipsterSipHeader *) ct);
+        }
+        ct->header.header.headerId = SIP_HEADER_CONTENT_TYPE;
+        ct->header.header.headerName = header_prototypes[ct->header.header.headerId].headerName;
+        ct->header.header.shortName = header_prototypes[ct->header.header.headerId].shortName;
+        strncpy(ct->contentType, response->content->contentType, sizeof(ct->contentType));
+        len = response->content->length;
+    }
+
+    current = sipster_get_header(SIP_HEADER_CONTENT_LENGTH, response->firstHeader, response->lastHeader);
+    SipsterSipHeaderContentLength * cl = NULL;
+    if(current) {
+        cl = (SipsterSipHeaderContentLength *) current->header;
+    } else {
+        cl = (SipsterSipHeaderContentLength *) sipster_sip_header_create(sizeof(SipsterSipHeaderContentLength));
+        response->lastHeader = sipster_append_new_header(response->lastHeader, (SipsterSipHeader *) cl);
+    }
+    cl->header.headerId = SIP_HEADER_CONTENT_LENGTH;
+    cl->header.headerName = header_prototypes[cl->header.headerId].headerName;
+    cl->header.shortName = header_prototypes[cl->header.headerId].shortName;
+    cl->number = len;
+
+    return response;
 }

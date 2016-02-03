@@ -31,4 +31,6 @@ static inline std::string &trim(std::string &s) {
 
 void * sipster_allocator(size_t size);
 void sipster_free(void * ptr);
+char * sipster_generate_uuid();
+char * sipster_generate_random_string(size_t len);
 #endif // UTILS_H

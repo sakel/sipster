@@ -1,327 +1,147 @@
-#include <sipster/log.h>
-#include <sipster/sip.h>
-#include <sipster/sip_headers.h>
-
-#include <utils.h>
-#include <stdlib.h>
-
 #include <gtest/gtest.h>
-
-#include <string>
-#include <iostream>
+#include <sipster/sipster.h>
+#include <sipster/log.h>
+#include <uv.h>
+#include <utils.h>
+#include <stdio.h>
 
 using namespace std;
 
-TEST(test_tokenizer, test_tokenizer_1) {
-    std::size_t pos = 0;
-    string input = "INVITE sip:bob@biloxi.com SIP/2.0";
+uv_async_t as;
+
+TEST(DISABLED_test_sipster_init_deinit, test_sipster_init_deinit_1) {
 
     setenv("SIPSTER_LOG_LEVEL", "5", 1);
 
-    string token = nextToken(input, " ", &pos);
-    SIPSTER_DEBUG(token.c_str());
+    Sipster * sipster = NULL;
+    sipster_init(&sipster, NULL);
+    SIPSTER_DEBUG("DONE INIT");
 
-    string token2 = nextToken(input, " ", &pos);
-    SIPSTER_DEBUG(token2.c_str());
+//    int ret = sipster_loop_run(sipster);
+//    SIPSTER_DEBUG("RUNNING");
+//    EXPECT_EQ(0, ret);
 
-    string token3 = getRest(input, &pos);
-    SIPSTER_DEBUG(token3.c_str());
+//    sipster_loop_end(sipster);
+//    SIPSTER_DEBUG("ENDING");
 
-    EXPECT_EQ("INVITE", token);
-    EXPECT_EQ("sip:bob@biloxi.com", token2);
-    EXPECT_EQ("SIP/2.0", token3);
+    sipster_deinit(sipster);
+    SIPSTER_DEBUG("DONE DEINIT");
 }
 
-TEST(test_tokenizer_corner, test_tokenizer_2) {
-    std::size_t pos = 0;
+void *threadSender(void *data) {
+    int i = 0;
+    Sipster *sipster = (Sipster *)data;
 
-    string input = "rport";
-    string token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_STREQ("rport", token.c_str());
+    sleep(5);
+    for(i = 0; i < 100; i++) {
 
-    token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_TRUE(token.empty());
+
+        SipsterSipCallLeg *leg;
+//        memset(&leg, 0, sizeof(leg));
+        leg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
+        leg->requestHandler = NULL;
+        leg->responseHandler = NULL;
+
+        SipsterSipRequest *request;
+//        memset(&request, 0, sizeof(request));
+        request = (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipCallLeg));
+        request->requestLine.method.method = "INVITE";
+        request->requestLine.method.methodId = SIP_METHOD_INVITE;
+        request->requestLine.version = (char *) "SIP/2.0";
+        request->requestLine.requestUri = (char *) "sip:192.168.1.138:5061";
+
+        SIPSTER_DEBUG("Sending msg");
+        int st = sipster_request_send((SipsterSipHandle *) sipster, leg, request);
+        EXPECT_EQ(0, st);
+        sleep(2);
+    }
+
+    return NULL;
 }
 
-TEST(test_parse_params, test_parse_params_1) {
-    std::size_t pos = 0;
+TEST(DISABLED_test_sipster_udp_send, test_sipster_udp_send_1) {
 
-    string input = "Bob Marley <sip:bob@marley.com>;tag=sdfsssdkgj;rport";
-    string token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_STREQ("Bob Marley <sip:bob@marley.com>", token.c_str());
+    setenv("SIPSTER_LOG_LEVEL", "5", 1);
 
-    token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_STREQ("tag=sdfsssdkgj", token.c_str());
+    Sipster * sipster = NULL;
+    sipster_init(&sipster, NULL);
+    SIPSTER_DEBUG("DONE INIT");
 
-    token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_STREQ("rport", token.c_str());
+    pthread_t thr;
+    pthread_create(&thr, NULL, threadSender, sipster);
 
-    token = nextToken(input, ";", &pos);
-    SIPSTER_DEBUG("%s __ %d", token.c_str(), pos);
-    EXPECT_TRUE(token.empty());
+    SIPSTER_DEBUG("STARTING LOOP");
+    sipster_loop_run(sipster);
+
+    sleep(10);
+
+    SIPSTER_DEBUG("Ending");
 }
 
+TEST(DISABLED_test_header_finder, test_header_finder_1) {
+    SipsterSipHeaderLeaf *startLeaf = NULL;
+    SipsterSipHeaderLeaf *endLeaf = NULL;
 
-TEST(test_req_line_parser, test_req_line_parser_1) {
+    SipsterSipHeader * startHeader = (SipsterSipHeader *) sipster_allocator(sizeof(SipsterSipHeader));
+    startHeader->headerId = SIP_HEADER_TO;
+    SipsterSipHeader * midHeader = (SipsterSipHeader *) sipster_allocator(sizeof(SipsterSipHeader));
+    midHeader->headerId = SIP_HEADER_CALL_ID;
+    SipsterSipHeader * endHeader = (SipsterSipHeader *) sipster_allocator(sizeof(SipsterSipHeader));
+    endHeader->headerId = SIP_HEADER_CALL_ID;
 
-    SipsterSipRequest *request;
-    char a[] = "INVITE sip:bob@biloxi.com SIP/2.0";
+    startLeaf = endLeaf = sipster_append_new_header(endLeaf, startHeader);
+    endLeaf = sipster_append_new_header(endLeaf, midHeader);
+    endLeaf = sipster_append_new_header(endLeaf, endHeader);
 
-    request = sipster_request_create();
+    EXPECT_TRUE(startLeaf);
+    EXPECT_TRUE(endLeaf);
+    EXPECT_TRUE(startLeaf->metadata);
+    EXPECT_TRUE(endLeaf->metadata);
+    EXPECT_EQ(3, (int)startLeaf->metadata->count);
+    EXPECT_EQ(3, (int)endLeaf->metadata->count);
 
-    EXPECT_TRUE(request);
+    SipsterSipHeaderLeaf *l = sipster_get_header(SIP_HEADER_TO, startLeaf, endLeaf);
+    EXPECT_TRUE(l);
+    EXPECT_EQ(1, (int)l->metadata->count);
+    EXPECT_EQ(SIP_HEADER_TO, l->header->headerId);
 
-    int res = sipster_request_parse_line(a, request);
+    l = sipster_get_header(SIP_HEADER_FROM, startLeaf, endLeaf);
+    EXPECT_FALSE(l);
 
-    SIPSTER_DEBUG(request->requestLine.method.method);
-
-    EXPECT_EQ(res, 0);
-    EXPECT_STREQ("INVITE", request->requestLine.method.method);
-    EXPECT_EQ(request->requestLine.method.methodId, SIP_METHOD_INVITE);
-    EXPECT_STREQ("sip:bob@biloxi.com", request->requestLine.requestUri);
-    EXPECT_STREQ("SIP/2.0", request->requestLine.version);
-
-    sipster_request_destroy(request);
+    l = sipster_get_header(SIP_HEADER_CALL_ID, startLeaf, endLeaf);
+    EXPECT_TRUE(l);
+    EXPECT_EQ(2, (int)l->metadata->count);
+    EXPECT_EQ(SIP_HEADER_CALL_ID, l->header->headerId);
+    EXPECT_EQ(SIP_HEADER_CALL_ID, l->next->header->headerId);
 }
 
-TEST(test_res_line_parser, test_res_line_parser_1) {
-    SipsterSipResponse * response;
-    char a[] = "SIP/2.0 404 The number you have dialed is not in service";
+TEST(test_parse_addr, test_parse_addr_1) {
+    SipsterSipAddress * addr1 = sipster_parse_address("Pinco Pallino <sip:pinco@pallino.com>");
+    SipsterSipAddress * addr2 = sipster_parse_address("\"Pinco Pallino\" <sip:pinco@pallino.com>");
+    SipsterSipAddress * addr3 = sipster_parse_address("sip:pinco@pallino.com");
+    SipsterSipAddress * addr4 = sipster_parse_address("sdjgsdflkjmsdfl ksfdkljglsdkj glskdjf lksdjf lksdmjf");
+    SipsterSipAddress * addr5 = sipster_parse_address("sdfds sdfsdf <sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
+    SipsterSipAddress * addr6 = sipster_parse_address("sdfds sdfsdf sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
+    SipsterSipAddress * addr7 = sipster_parse_address("sdfds sdfsdf <sip:pinco@pallino.com:5060>");
 
-    response = sipster_response_create();
+    EXPECT_TRUE(addr1);
+    EXPECT_TRUE(addr2);
+    EXPECT_TRUE(addr3);
+    EXPECT_FALSE(addr4);
+    EXPECT_TRUE(addr5);
+    EXPECT_FALSE(addr6);
+    EXPECT_TRUE(addr7);
 
-    EXPECT_TRUE(response);
+    EXPECT_STREQ("sdfds sdfsdf", addr5->name);
+    EXPECT_STREQ("pallino.com", addr5->domain);
+    EXPECT_STREQ("sip", addr5->schema);
+    EXPECT_STREQ("pinco", addr5->user);
+    EXPECT_EQ(5060, addr5->port);
 
-    int res = sipster_response_parse_line(a, response);
+    EXPECT_STREQ("sdfds sdfsdf", addr7->name);
+    EXPECT_STREQ("pallino.com", addr7->domain);
+    EXPECT_STREQ("sip", addr7->schema);
+    EXPECT_STREQ("pinco", addr7->user);
+    EXPECT_EQ(5060, addr7->port);
 
-    SIPSTER_DEBUG(response->responseLine.status.reason);
-
-    EXPECT_EQ(res, 0);
-    EXPECT_STREQ("SIP/2.0", response->responseLine.version);
-    EXPECT_EQ(SIP_STATUS_404_NOT_FOUND, response->responseLine.status.status);
-    EXPECT_EQ(404, response->responseLine.status.statusCode);
-
-    //sipster_response_destroy(response);
-}
-
-TEST(test_to_parse_print, test_to_parse_print_1) {
-
-    char to[] = "To: Alice <sip:alice@atlanta.com>;tag=1928301774";
-
-    SIPSTER_INFO("Parsing header");
-
-    SipsterSipHeader * header = sipster_request_parse_header(to);
-    EXPECT_TRUE(header);
-    EXPECT_EQ(SIP_HEADER_TO, header->headerId);
-    EXPECT_STREQ("To", header->headerName);
-
-    SipsterSipHeaderTo * headerTo = (SipsterSipHeaderTo *) header;
-
-    EXPECT_STREQ("Alice <sip:alice@atlanta.com>", headerTo->address);
-
-    SipsterSipParameter * param = headerTo->header.first;
-    EXPECT_STREQ("tag", param->name);
-    EXPECT_STREQ("1928301774", param->value);
-    EXPECT_FALSE(param->next);
-
-    char * pHeader = sipster_request_print_header(header);
-    SIPSTER_DEBUG(pHeader);
-    EXPECT_STREQ(to, pHeader);
-
-}
-
-
-TEST(test_from_parse_print, test_from_parse_print_1) {
-    char from[] = "From: Alice <sip:alice@atlanta.com>;tag=1928301774";
-
-    SIPSTER_INFO("Parsing header");
-
-    SipsterSipHeader * header = sipster_request_parse_header(from);
-    EXPECT_TRUE(header);
-    EXPECT_EQ(SIP_HEADER_FROM, header->headerId);
-    EXPECT_STREQ("From", header->headerName);
-
-    SipsterSipHeaderFrom * headerFrom = (SipsterSipHeaderFrom *) header;
-
-    EXPECT_STREQ("Alice <sip:alice@atlanta.com>", headerFrom->address);
-
-    SipsterSipParameter * param = headerFrom->header.first;
-    EXPECT_STREQ("tag", param->name);
-    EXPECT_STREQ("1928301774", param->value);
-    EXPECT_FALSE(param->next);
-
-    char * pHeader = sipster_request_print_header(header);
-    SIPSTER_DEBUG(pHeader);
-    EXPECT_STREQ(from, pHeader);
-}
-
-
-TEST(test_via_parse_print, test_via_parse_print_1) {
-    char via[] = "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8";
-
-    SIPSTER_INFO("Parsing header");
-
-    SipsterSipHeader * header = sipster_request_parse_header(via);
-    EXPECT_TRUE(header);
-    EXPECT_EQ(SIP_HEADER_VIA, header->headerId);
-    EXPECT_STREQ("Via", header->headerName);
-
-    SipsterSipHeaderVia * headerVia = (SipsterSipHeaderVia *) header;
-    EXPECT_STREQ("pc33.atlanta.com", headerVia->address);
-    EXPECT_STREQ("SIP/2.0/UDP", headerVia->protocol);
-
-    SipsterSipParameter * param = headerVia->header.first;
-    EXPECT_STREQ("branch", param->name);
-    EXPECT_STREQ("z9hG4bKnashds8", param->value);
-    EXPECT_FALSE(param->next);
-
-    char * pHeader = sipster_request_print_header(header);
-    SIPSTER_DEBUG(pHeader);
-    EXPECT_STREQ(via, pHeader);
-}
-
-TEST(test_cl_parse_print, test_cl_parse_print_1) {
-    char clen[] = "Content-Length: 349";
-
-    SIPSTER_INFO("Parsing header");
-
-    SipsterSipHeader * header = sipster_request_parse_header(clen);
-    EXPECT_TRUE(header);
-    EXPECT_EQ(SIP_HEADER_CONTENT_LENGTH, header->headerId);
-    EXPECT_STREQ("Content-Length", header->headerName);
-
-    SipsterSipHeaderContentLength * headerCl = (SipsterSipHeaderContentLength *) header;
-    EXPECT_EQ((unsigned int)349, headerCl->length);
-
-    char * pHeader = sipster_request_print_header(header);
-    SIPSTER_DEBUG(pHeader);
-    EXPECT_STREQ(clen, pHeader);
-}
-
-TEST(test_ct_parse_print, test_ct_parse_print_1) {
-    char ct[] = "Content-Type: application/sdp;charset=ISO-8859-4";
-
-    SIPSTER_INFO("Parsing header");
-
-    SipsterSipHeader * header = sipster_request_parse_header(ct);
-    EXPECT_TRUE(header);
-    EXPECT_EQ(SIP_HEADER_CONTENT_TYPE, header->headerId);
-    EXPECT_STREQ("Content-Type", header->headerName);
-
-    SipsterSipHeaderContentType * headerCt = (SipsterSipHeaderContentType *) header;
-    EXPECT_STREQ("application/sdp", headerCt->contentType);
-
-    SipsterSipParameter * param = headerCt->header.first;
-    EXPECT_STREQ("charset", param->name);
-    EXPECT_STREQ("ISO-8859-4", param->value);
-    EXPECT_FALSE(param->next);
-
-    char * pHeader = sipster_request_print_header(header);
-    SIPSTER_DEBUG(pHeader);
-    EXPECT_STREQ(ct, pHeader);
-}
-
-TEST(test_request_parse_print, test_request_parse_print_1) {
-    int result = 0;
-
-    SIPSTER_DEBUG("PARSING REQUEST");
-
-    string invite = "";
-            invite = invite + "INVITE sip:bob@biloxi.com SIP/2.0\r\n"+
-            "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8\r\n"+
-            "To: Bob <bob@biloxi.com>\r\n"+
-            "From: Alice <alice@atlanta.com>;tag=1928301774\r\n"+
-            "Call-ID: a84b4c76e66710\r\n"+
-            "CSeq: 314159 INVITE\r\n"+
-//            "Max-Forwards: 70\r\n"+
-//            "Date: Thu, 21 Feb 2002 13:02:03 GMT\r\n"+
-            "Contact: <sip:alice@pc33.atlanta.com>\r\n"+
-            "Content-Type: application/sdp\r\n"+
-            "Content-Length: 150\r\n"+
-            "\r\n"+
-            "v=0\r\n"+
-            "o=UserA 2890844526 2890844526 IN IP4 here.com\r\n"+
-            "s=Session SDP\r\n"+
-            "c=IN IP4 pc33.atlanta.com\r\n"+
-            "t=0 0\r\n"+
-            "m=audio 49172 RTP/AVP 0\r\n"+
-            "a=rtpmap:0 PCMU/8000\r\n"+
-            "\r\n";
-
-    printf("%s\n", invite.c_str());
-
-
-    SipsterSipRequest * req = sipster_request_parse(invite.c_str(), invite.length(), &result);
-    EXPECT_TRUE(req);
-    EXPECT_EQ(SIP_METHOD_INVITE, req->requestLine.method.methodId);
-
-    EXPECT_TRUE(req->firstHeader);
-    EXPECT_TRUE(req->lastHeader);
-    EXPECT_TRUE(req->content);
-    EXPECT_EQ(8, req->lastHeader->count+1);
-
-    EXPECT_EQ((unsigned int) 150, req->content->length);
-    EXPECT_STREQ("application/sdp", req->content->contentType);
-
-    SIPSTER_DEBUG("==============================================================");
-
-    SipsterSipMessagePrint * print = sipster_request_print(req);
-    EXPECT_TRUE(print);
-    EXPECT_TRUE(print->output);
-    SIPSTER_DEBUG(print->output);
-    string output = print->output;
-    EXPECT_EQ(invite, output);
-}
-
-TEST(test_response_parse_print, test_response_parse_print_1) {
-    int result = 0;
-    string response = "";
-    response = response +
-                "SIP/2.0 200 OK\r\n"+
-                "Via: SIP/2.0/UDP server10.biloxi.com;branch=z9hG4bKnashds8;received=192.0.2.3\r\n"+
-                "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1;received=192.0.2.2\r\n"+
-                "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds;received=192.0.2.1\r\n"+
-                "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf\r\n"+
-                "From: Alice <sip:alice@atlanta.com>;tag=1928301774\r\n"+
-                "Call-ID: a84b4c76e66710@pc33.atlanta.com\r\n"+
-                "CSeq: 314159 INVITE\r\n"+
-                "Contact: <sip:bob@192.0.2.4>\r\n"+
-                "Content-Type: application/sdp\r\n"+
-                "Content-Length: 150\r\n"+
-                "\r\n"+
-                "v=0\r\n"+
-                "o=UserA 2890844526 2890844526 IN IP4 here.com\r\n"+
-                "s=Session SDP\r\n"+
-                "c=IN IP4 pc33.atlanta.com\r\n"+
-                "t=0 0\r\n"+
-                "m=audio 49172 RTP/AVP 0\r\n"+
-                "a=rtpmap:0 PCMU/8000\r\n"+
-                "\r\n";
-
-    SipsterSipResponse * res = sipster_response_parse(response.c_str(), response.length(), &result);
-
-    EXPECT_TRUE(res);
-    EXPECT_EQ(SIP_STATUS_200_OK, res->responseLine.status.status);
-
-    EXPECT_TRUE(res->firstHeader);
-    EXPECT_TRUE(res->lastHeader);
-    EXPECT_TRUE(res->content);
-    EXPECT_EQ(10, res->lastHeader->count+1);
-
-    EXPECT_EQ((unsigned int) 150, res->content->length);
-    EXPECT_STREQ("application/sdp", res->content->contentType);
-
-    SIPSTER_DEBUG("==============================================================");
-
-    SipsterSipMessagePrint * print = sipster_response_print(res);
-    EXPECT_TRUE(print);
-    EXPECT_TRUE(print->output);
-    SIPSTER_DEBUG(print->output);
-    string output = print->output;
-    EXPECT_EQ(response, output);
 }

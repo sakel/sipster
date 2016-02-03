@@ -1,12 +1,13 @@
 set(include_dir ${PROJECT_SOURCE_DIR}/src)
 
-include_directories("${include_dir}")
+include_directories("${include_dir}" "${PROJECT_SOURCE_DIR}/deps/include")
 
-set(HEADER_FILES ${include_dir}/sipster/sipster.h ${include_dir}/sipster/log.h ${include_dir}/sipster/sip.h ${include_dir}/sipster/sip_headers.h ${include_dir}/sipster/sip_enums.h)
+set(HEADER_FILES ${include_dir}/sipster/sipster.h ${include_dir}/sipster/log.h ${include_dir}/sipster/sip.h ${include_dir}/sipster/sip_headers.h
+${include_dir}/sipster/sip_enums.h isaac/standard.h isaac/rand.h ${PROJECT_SOURCE_DIR}/deps/include/uuid.h)
 
-set(sources sipster.cpp log.cpp sip.cpp utils.cpp utils.h sip_headers.cpp)
+set(sources sipster.cpp log.cpp sip.cpp utils.cpp utils.h sip_headers.cpp isaac/rand.c)
 
 # Make a shared Lib
 add_library (sipster SHARED ${sources} ${HEADER_FILES})
+target_link_libraries(sipster uv ${PROJECT_SOURCE_DIR}/deps/libs/linux_x64/libuuid.so)
 #add_library (sipster STATIC ${sources})
-

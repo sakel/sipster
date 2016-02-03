@@ -5,7 +5,7 @@
 
 int logLevel = -1;
 
-#define PRINTF_LOG(level, levelStr, output) if(level <= logLevel) printf("%s: %s\n", levelStr, output)
+#define PRINTF_LOG(ns, level, levelStr, output) if(level <= logLevel) printf("%s:: %s: %s\n", ns, levelStr, output)
 
 void sipster_log_set_level_from_env() {
     const char * lvl = getenv("SIPSTER_LOG_LEVEL");
@@ -17,7 +17,7 @@ void sipster_log_set_level_from_env() {
 }
 
 
-void sipster_log(SipsterLogLevel level, const char * format, ...) {
+void sipster_log(const char * ns, SipsterLogLevel level, const char * format, ...) {
 
     char output[1000];
 
@@ -28,23 +28,23 @@ void sipster_log(SipsterLogLevel level, const char * format, ...) {
     va_list args;
     va_start( args, format );
 
-    vsprintf(output, format, args);
+    vsnprintf(output, sizeof(output), format, args);
 
     switch(level) {
         case LOG_TRACE:
-            PRINTF_LOG(LOG_TRACE, "TRACE", output);
+            PRINTF_LOG(ns, LOG_TRACE, "TRACE", output);
         break;
         case LOG_DEBUG:
-            PRINTF_LOG(LOG_DEBUG, "DEBUG", output);
+            PRINTF_LOG(ns, LOG_DEBUG, "DEBUG", output);
         break;
         case LOG_INFO:
-            PRINTF_LOG(LOG_INFO, "INFO", output);
+            PRINTF_LOG(ns, LOG_INFO, "INFO", output);
         break;
         case LOG_WARN:
-            PRINTF_LOG(LOG_WARN, "WARN", output);
+            PRINTF_LOG(ns, LOG_WARN, "WARN", output);
         break;
         case LOG_ERROR:
-            PRINTF_LOG(LOG_ERROR, "ERROR", output);
+            PRINTF_LOG(ns, LOG_ERROR, "ERROR", output);
         break;
     }
     va_end( args );
