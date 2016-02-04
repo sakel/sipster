@@ -1,3 +1,4 @@
+
 cmake_minimum_required (VERSION 3.4.1)
 project (sipster)
 
@@ -9,3 +10,4 @@ set(CMAKE_CXX_FLAGS "-Wall -Werror -std=c++11 -g3 -O0 -pthread")
 
 add_subdirectory (src)
 add_subdirectory (test)
+

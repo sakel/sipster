@@ -9,6 +9,11 @@
 
 #define SIP_METHOD_NAME(id) method_names[id]
 
+typedef enum {
+    SIP_LEG_INBOUND,
+    SIP_LEG_OUTBOUND
+} SipsterSipLegDirection;
+
 typedef struct _SipsterSipRequest SipsterSipRequest;
 typedef struct _SipsterSipResponse SipsterSipResponse;
 typedef struct _SipsterSipMessagePrint SipsterSipMessagePrint;
@@ -83,6 +88,7 @@ struct _SipsterSipMessagePrint {
 };
 
 struct _SipsterSipCallLeg {
+    SipsterSipLegDirection direction;
     char callId[150];
     SipsterSipAddress from;
     char fromTag[15];

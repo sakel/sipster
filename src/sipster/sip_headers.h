@@ -19,6 +19,8 @@
 
 #define SIP_HEADER_FIELD_COPY(field, data) strncpy(field, data, sizeof(field)-1)
 
+#define SIP_ADDRESS_NONE {NULL_STRING, NULL_STRING, NULL_STRING, NULL_STRING, 0}
+
 typedef struct _SipsterSipAddress SipsterSipAddress;
 typedef struct _SipsterSipHeaderAddress SipsterSipHeaderAddress;
 typedef struct _SipsterSipHeaderVia SipsterSipHeaderVia;

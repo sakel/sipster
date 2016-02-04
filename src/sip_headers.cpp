@@ -307,8 +307,8 @@ void sipster_sip_header_destroy(SipsterSipHeader * header) {
 
 SipsterSipParameter * sipster_sip_parameter_create(const char * key, const char * value) {
     SipsterSipParameter * param = (SipsterSipParameter *) sipster_allocator(sizeof(SipsterSipParameter));
-    strncpy(param->name, key, strlen(key)+1);
-    strncpy(param->value, value, strlen(value)+1);
+    strncpy(param->name, key, sizeof(param->name)-1);
+    strncpy(param->value, value, sizeof(param->value)-1);
 
     return param;
 }

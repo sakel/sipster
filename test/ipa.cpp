@@ -23,7 +23,7 @@ void *threadSender(void *data) {
 
         SipsterSipCallLeg *leg;
 //        memset(&leg, 0, sizeof(leg));
-        leg = sipster_sip_call_leg_create(sipster, sipster_generate_uuid(),
+        leg = sipster_sip_call_leg_create(sipster, SIP_LEG_OUTBOUND, sipster_generate_uuid(),
                                           "sip:me@me.com", sipster_generate_random_string(13),
                                           "sip:you@you.com", NULL,
                                           request_handler, response_handler, sipster);
@@ -45,7 +45,7 @@ void *threadSender(void *data) {
 
         SipsterSipHeaderFrom * from = SIP_HEADER_WITH_PARAMS_CREATE(SIP_HEADER_FROM, SipsterSipHeaderFrom);
         SIP_HEADER_FIELD_COPY(from->address, "sip:me@me.com");
-        SipsterSipParameter *fromTag = sipster_sip_parameter_create("tag", SIP_HEADER_TAG_CREATE());
+        SipsterSipParameter *fromTag = sipster_sip_parameter_create("tag", leg->fromTag);
         sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) from, fromTag);
 
         SipsterSipHeaderTo *to = SIP_HEADER_WITH_PARAMS_CREATE(SIP_HEADER_TO, SipsterSipHeaderTo);
@@ -57,7 +57,7 @@ void *threadSender(void *data) {
         cseq->requestMethod = SIP_METHOD_NAME(SIP_METHOD_INVITE);
 
         SipsterSipHeaderCallID * callId = SIP_HEADER_CREATE(SIP_HEADER_CALL_ID, SipsterSipHeaderCallID);
-        SIP_HEADER_FIELD_COPY(callId->data, sipster_generate_uuid());
+        SIP_HEADER_FIELD_COPY(callId->data, leg->callId);
 
         SipsterSipHeaderContact * contact = SIP_HEADER_CREATE(SIP_HEADER_CONTACT, SipsterSipHeaderContact);
         SIP_HEADER_FIELD_COPY(contact->address, "<sip:me@192.168.1.138:5061>");
@@ -106,13 +106,15 @@ Content-Length: 0
 }
 
 int main(int argc, char ** argv) {
+    static SipsterSipCallLeg defaultLeg = {SIP_LEG_INBOUND, NULL_STRING,
+                                                 {"sip", "Test", "test", "liblab.si", 5060},
+                                                 NULL_STRING, SIP_ADDRESS_NONE, NULL_STRING, request_handler, response_handler, NULL};
 
     setenv("SIPSTER_LOG_LEVEL", "5", 1);
 
     Sipster * sipster = NULL;
-    SipsterSipCallLeg * defaultLeg = sipster_sip_call_leg_create(NULL, "1", "sip:this@local.uri", "", "", "", request_handler, response_handler, NULL);
-    sipster_init(&sipster, defaultLeg);
-    defaultLeg->data = sipster;
+    //SipsterSipCallLeg * defaultLeg = sipster_sip_call_leg_create(NULL, "1", "sip:this@local.uri", "", "", "", request_handler, response_handler, NULL);
+    sipster_init(&sipster, &defaultLeg);
 
     SIPSTER_DEBUG("DONE INIT");
 

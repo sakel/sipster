@@ -40,7 +40,9 @@ int sipster_request_parse_line(const char * input, SipsterSipRequest * sipReques
 }
 
 SipsterSipRequest *sipster_request_create() {
-    return (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipRequest));
+    SipsterSipRequest * request = (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipRequest));
+
+    return request;
 }
 
 void sipster_request_destroy(SipsterSipRequest *request) {
