@@ -15,11 +15,11 @@ string nextToken(string input, string delimiter, std::size_t *pos) {
     string token = input.substr(*pos, new_pos-*pos);
 
     *pos = new_pos;
-    if(token.empty()) {
-        return "";
-    }
     if(new_pos != std::string::npos) {
         *pos = *pos + delimiter.size();
+    }
+    if(token.empty()) {
+        return "";
     }
 
     return token;

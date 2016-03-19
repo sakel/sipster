@@ -13,6 +13,16 @@ int request_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, S
 int response_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, SipsterSipResponse *response, void *data);
 
 
+static const char * sdp = "v=0\r\n"
+        "o=bla 123456 123456 IN IP4 %s\r\n"
+        "i=A Seminar on the session description protocol\r\n"
+        "c=IN IP4 %s\r\n"
+        "t=0 0\r\n"
+        "m=audio %d RTP/AVP 8\r\n"
+        "a=rtpmap:8 PCMA/%d\r\n"
+        "m=video %d RTP/AVP 96\r\n"
+        "a=rtpmap:96 H264/%d\r\n\r\n";
+
 void *threadSender(void *data) {
 //    int i = 0;
     Sipster *sipster = (Sipster *)data;
@@ -68,8 +78,18 @@ void *threadSender(void *data) {
         SipsterSipHeaderMaxFwds * mf = SIP_HEADER_CREATE(SIP_HEADER_MAX_FORWARDS, SipsterSipHeaderMaxFwds);
         mf->number = 10;
 
+
+        char final_sdp[1000];
+
+        snprintf(final_sdp, sizeof(final_sdp), sdp, "192.168.1.138", "192.168.1.138", 3000, 8000, 3002, 90000);
+
+
         SipsterSipHeaderContentLength * cl = SIP_HEADER_CREATE(SIP_HEADER_CONTENT_LENGTH, SipsterSipHeaderContentLength);
-        cl->number = 0;
+        cl->number = strlen(final_sdp)+2;
+
+        SipsterSipContentBody * body;
+        int len = strlen(final_sdp)+2;
+        SIP_BODY_CREATE(body, "application/sdp", final_sdp, len);
 
         request->firstHeader = request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(via));
         request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(from));
@@ -80,6 +100,7 @@ void *threadSender(void *data) {
         request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(ua));
         request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(mf));
         request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(cl));
+        request->content = body;
 
 /*
 REGISTER sip:192.168.1.138 SIP/2.0
@@ -138,7 +159,7 @@ int request_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, S
     SIPSTER_DEBUG("GOT REQUEST OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
     switch(request->requestLine.method.methodId) {
         case SIP_METHOD_REGISTER:
-        response = sipster_request_create_response(request, leg, SIP_STATUS_200_OK, NULL);
+        response = sipster_request_create_response(sipsterHandle, request, leg, SIP_STATUS_200_OK, NULL);
         ret = sipster_request_reply(sipsterHandle, leg, response);
         if(ret) {
             SIPSTER_ERROR("ERROR Sending reply");

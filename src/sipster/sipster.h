@@ -2,6 +2,8 @@
 #define SIPSTER_H
 
 #include <sipster/sip.h>
+#include <sipster/sip_enums.h>
+#include <sipster/sip_headers.h>
 
 #define SIPSTER(s) (Sipster *) s
 
@@ -14,6 +16,7 @@ void sipster_deinit(Sipster * sipster);
 
 SipsterSipCallLeg * sipster_sip_call_leg_create(Sipster *sipster, SipsterSipLegDirection direction, const char * callId, const char * fromUri, const char * fromTag, const char *toUri, const char *toTag,
                                                 leg_request_handler requestHandler, leg_response_handler responseHandler, void *data);
+SipsterSipCallLeg * sipster_sip_call_leg_create_default(SipsterSipLegDirection direction, leg_request_handler requestHandler, leg_response_handler responseHandler, void *data);
 void sipster_sip_call_leg_destroy(SipsterSipCallLeg *leg);
 
 

@@ -116,13 +116,13 @@ TEST(DISABLED_test_header_finder, test_header_finder_1) {
 }
 
 TEST(test_parse_addr, test_parse_addr_1) {
-    SipsterSipAddress * addr1 = sipster_parse_address("Pinco Pallino <sip:pinco@pallino.com>");
-    SipsterSipAddress * addr2 = sipster_parse_address("\"Pinco Pallino\" <sip:pinco@pallino.com>");
-    SipsterSipAddress * addr3 = sipster_parse_address("sip:pinco@pallino.com");
-    SipsterSipAddress * addr4 = sipster_parse_address("sdjgsdflkjmsdfl ksfdkljglsdkj glskdjf lksdjf lksdmjf");
-    SipsterSipAddress * addr5 = sipster_parse_address("sdfds sdfsdf <sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
-    SipsterSipAddress * addr6 = sipster_parse_address("sdfds sdfsdf sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
-    SipsterSipAddress * addr7 = sipster_parse_address("sdfds sdfsdf <sip:pinco@pallino.com:5060>");
+    SipsterSipAddress * addr1 = sipster_address_parse("Pinco Pallino <sip:pinco@pallino.com>");
+    SipsterSipAddress * addr2 = sipster_address_parse("\"Pinco Pallino\" <sip:pinco@pallino.com>");
+    SipsterSipAddress * addr3 = sipster_address_parse("sip:pinco@pallino.com");
+    SipsterSipAddress * addr4 = sipster_address_parse("sdjgsdflkjmsdfl ksfdkljglsdkj glskdjf lksdjf lksdmjf");
+    SipsterSipAddress * addr5 = sipster_address_parse("sdfds sdfsdf <sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
+    SipsterSipAddress * addr6 = sipster_address_parse("sdfds sdfsdf sip:pinco@pallino.com:5060;skdjfsdl=sdlkjfdsl>");
+    SipsterSipAddress * addr7 = sipster_address_parse("sdfds sdfsdf <sip:pinco@pallino.com:5060>");
 
     EXPECT_TRUE(addr1);
     EXPECT_TRUE(addr2);

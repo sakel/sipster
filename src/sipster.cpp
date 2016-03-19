@@ -176,14 +176,14 @@ int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
         switch(ret) {
             case MESSAGE_ERROR:
             case MESSAGE_PARSE_ERROR:
-                response = sipster_request_create_response(request, leg, SIP_STATUS_400_BAD_REQUEST, NULL);
+                response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_400_BAD_REQUEST, NULL);
             break;
             case CALL_NOT_FOUND:
-                response = sipster_request_create_response(request, leg, SIP_STATUS_481_CALL_TRANSACTION_DOES_NOT_EXIST, NULL);
+                response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_481_CALL_TRANSACTION_DOES_NOT_EXIST, NULL);
             break;
         }
 
-        ret = sipster_request_reply((SipsterSipHandle *) sipster, leg, response);
+        ret = sipster_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
         if(ret != OK) {
             SIPSTER_ERROR("Could not respond to request");
         }
@@ -191,13 +191,13 @@ int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
     }
 
     if(leg->requestHandler) {
-        ret = leg->requestHandler((SipsterSipHandle *) sipster, leg, request, leg->data);
+        ret = leg->requestHandler(SIP_SIPSTER_HANDLE(sipster), leg, request, leg->data);
         return ret;
     }
 
     SIPSTER_DEBUG("CALL LEG OK");
-    response = sipster_request_create_response(request, leg, SIP_STATUS_200_OK, NULL);
-    ret = sipster_request_reply((SipsterSipHandle *) sipster, leg, response);
+    response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_200_OK, NULL);
+    ret = sipster_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
 
     sipster_free(leg);
 
@@ -215,7 +215,7 @@ int sipster_process_response(Sipster * sipster, SipsterSipResponse * response) {
     }
 
     if(leg->responseHandler) {
-        ret = leg->responseHandler((SipsterSipHandle *) sipster, leg, response, leg->data);
+        ret = leg->responseHandler(SIP_SIPSTER_HANDLE(sipster), leg, response, leg->data);
         return ret;
     }
 
@@ -453,6 +453,10 @@ end_new_instance:
     return -1;
 }
 
+void sipster_set_rport(Sipster *sipster, unsigned int rport) {
+    sipster->handle.rport = rport;
+}
+
 int sipster_loop_run(Sipster * sipster) {
     return uv_run(sipster->loop, UV_RUN_DEFAULT);
 }
@@ -475,7 +479,7 @@ void sipster_deinit(Sipster * sipster) {
                 typedef tagged_legs_t::iterator it_it_type;
                 for(it_type iterator = sipster->legs->begin(); iterator != sipster->legs->end(); iterator++) {
 
-                    map<std::string, SipsterSipCallLeg *> *callLegs = iterator->second;
+                    tagged_legs_t *callLegs = iterator->second;
                     for(it_it_type iterator2 = callLegs->begin(); iterator2 != callLegs->end(); iterator2++) {
                         if(iterator2->second) {
                             sipster_free(iterator2->second);
@@ -498,8 +502,8 @@ SipsterSipCallLeg * sipster_sip_call_leg_create(Sipster *sipster, SipsterSipLegD
 
     strncpy(callLeg->callId, callId, sizeof(callLeg->callId));
 
-    sipster_parse_address_inPlace(fromUri, &callLeg->from);
-    sipster_parse_address_inPlace(toUri, &callLeg->to);
+    sipster_address_parse_inPlace(fromUri, &callLeg->from);
+    sipster_address_parse_inPlace(toUri, &callLeg->to);
 
     if(fromTag) {
         strncpy(callLeg->fromTag, fromTag, sizeof(callLeg->fromTag)-1);
@@ -517,11 +521,23 @@ SipsterSipCallLeg * sipster_sip_call_leg_create(Sipster *sipster, SipsterSipLegD
 
     tagged_legs_t *tags = NULL;
     call_id_t::iterator tagsIterator = sipster->legs->find(sCallId);
-    if(tagsIterator == sipster->legs->end()) {
+    if(tagsIterator != sipster->legs->end()) {
+        tags = tagsIterator->second;
+    } else {
         tags = new tagged_legs_t();
     }
     tags->insert(pair<string, SipsterSipCallLeg *>(direction == SIP_LEG_INBOUND ? toTag : fromTag, callLeg));
     sipster->legs->insert(pair<string, tagged_legs_t *>(callId, tags));
+    callLeg->requestHandler = requestHandler;
+    callLeg->responseHandler = responseHandler;
+    callLeg->data = data;
+
+    return callLeg;
+}
+
+SipsterSipCallLeg * sipster_sip_call_leg_create_default(SipsterSipLegDirection direction, leg_request_handler requestHandler, leg_response_handler responseHandler, void *data) {
+    SipsterSipCallLeg * callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
+
     callLeg->requestHandler = requestHandler;
     callLeg->responseHandler = responseHandler;
     callLeg->data = data;

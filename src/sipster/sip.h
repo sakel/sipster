@@ -9,6 +9,13 @@
 
 #define SIP_METHOD_NAME(id) method_names[id]
 
+#define SIP_BODY_CREATE(body, cType, content, len) body = (SipsterSipContentBody *) sipster_allocator(sizeof(SipsterSipContentBody)); \
+strncpy(body->contentType, cType, sizeof(body->contentType)); \
+strncpy(body->data, content, sizeof(body->data));\
+body->length = len \
+
+#define SIP_SIPSTER_HANDLE(x) (SipsterSipHandle *) x
+
 typedef enum {
     SIP_LEG_INBOUND,
     SIP_LEG_OUTBOUND
@@ -103,13 +110,14 @@ struct _SipsterSipHandle {
     void *data;
     leg_send_request sendRequest;
     leg_send_response sendResponse;
+    unsigned int rport = 5060;
 };
 
 SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *result);
 SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request);
 SipsterSipRequest *sipster_request_create();
 void sipster_request_destroy(SipsterSipRequest *request);
-SipsterSipResponse * sipster_request_create_response(SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body);
+SipsterSipResponse * sipster_request_create_response(SipsterSipHandle *sipster, SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body);
 
 SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *result);
 SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response);

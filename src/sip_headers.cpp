@@ -4,6 +4,13 @@
 #include <sipster/log.h>
 #include <cstdio>
 #include <regex>
+#include <sip_headers_private.h>
+#include <cstring>
+
+#define SIP_ADDRESS_URI_FORMAT_NO_PORT "%s:%s@%s"
+#define SIP_ADDRESS_URI_FORMAT_WITH_PORT "%s:%s@%s:%u"
+#define SIP_ADDRESS_FORMAT_NO_PORT "%s%s<%s:%s@%s>"
+#define SIP_ADDRESS_FORMAT_WITH_PORT "%s%s<%s:%s@%s:%u>"
 
 SipsterSipHeader * sipster_init_basic_header(SipsterSipHeaderEnum id, size_t allocation_size) {
     SipsterSipHeader * header = (SipsterSipHeader *) sipster_sip_header_create(allocation_size);
@@ -64,6 +71,16 @@ char* no_print(SipsterSipHeader * header) {
     return NULL;
 }
 
+SipsterSipHeader *hclone(SipsterSipHeader *header) {
+    SipsterSipHeader *cpy = (SipsterSipHeader *) sipster_allocator(sizeof(SipsterSipHeader));
+
+    cpy->headerId = header->headerId;
+    cpy->headerName = header->headerName;
+    cpy->shortName = header->shortName;
+
+    return cpy;
+}
+
 void param_destroy(SipsterSipHeaderWithParams * headerWithParams) {
     SipsterSipParameter * p = headerWithParams->first;
     while(p) {
@@ -76,16 +93,21 @@ void param_destroy(SipsterSipHeaderWithParams * headerWithParams) {
 void addr_destroy(SipsterSipHeader * header) {
     SIPSTER_SIP_DEBUG("Destroying %s", header->headerName);
     SipsterSipHeaderAddress * addr = (SipsterSipHeaderAddress *) header;
+    if(addr->parsedAddress) {
+        sipster_free(addr->parsedAddress);
+    }
     param_destroy((SipsterSipHeaderWithParams *) addr);
 }
 
 SipsterSipHeader* addr_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
-    SipsterSipHeaderAddress * to_header = (SipsterSipHeaderAddress *) sipster_init_basic_header(id, sizeof(SipsterSipHeaderAddress));
+    SipsterSipHeaderAddress * to_header = (SipsterSipHeaderAddress *) sipster_init_params_header(id, sizeof(SipsterSipHeaderAddress));
     string addressString = nextToken(input, ";", &pos);
 
     //TODO Should do a trim of the whitespaces
     strncpy(to_header->address, addressString.c_str(), addressString.length()+1);
+    SipsterSipAddress *addr = sipster_address_parse(addressString.c_str());
+    to_header->parsedAddress = addr;
 
     SipsterSipParameter * params = parse_header_params(input, &pos);
     to_header->header.first = params;
@@ -111,10 +133,20 @@ char* addr_print(SipsterSipHeader * header) {
     return output;
 }
 
+SipsterSipHeader *addr_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderAddress *cpy = (SipsterSipHeaderAddress *) sipster_allocator(sizeof(SipsterSipHeaderAddress));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderAddress));
+    cpy->parsedAddress = sipster_address_clone(((SipsterSipHeaderAddress *) header)->parsedAddress);
+
+    sipster_sip_parameters_clone(SIP_HEADER_WITH_PARAMS(header), SIP_HEADER_WITH_PARAMS(cpy));
+
+    return (SipsterSipHeader *) cpy;
+}
 
 SipsterSipHeader* via_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
-    SipsterSipHeaderVia* via_header = (SipsterSipHeaderVia*) sipster_init_basic_header(id, sizeof(SipsterSipHeaderVia));
+    SipsterSipHeaderVia* via_header = (SipsterSipHeaderVia*) sipster_init_params_header(id, sizeof(SipsterSipHeaderVia));
     via_header->header.first = NULL;
 
     string versionString = nextToken(input, " ", &pos);
@@ -125,6 +157,8 @@ SipsterSipHeader* via_parse(SipsterSipHeaderEnum id, const char * input) {
     string addressString = nextToken(input, ";", &pos);
     strncpy(via_header->address, addressString.c_str(), sizeof(via_header->address)-1);
     SIPSTER_SIP_DEBUG(addressString.c_str());
+
+    via_header->parsedAddress = sipster_address_parse(addressString.c_str());
 
     SipsterSipParameter * params = parse_header_params(input, &pos);
     via_header->header.first = params;
@@ -152,6 +186,16 @@ char* via_print(SipsterSipHeader * header) {
 
 void via_destroy(SipsterSipHeader * header) {
     param_destroy((SipsterSipHeaderWithParams*) header);
+}
+
+SipsterSipHeader *via_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderVia *cpy = (SipsterSipHeaderVia *) sipster_allocator(sizeof(SipsterSipHeaderVia));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderVia));
+    cpy->parsedAddress = sipster_address_clone(((SipsterSipHeaderVia *) header)->parsedAddress);
+    sipster_sip_parameters_clone(SIP_HEADER_WITH_PARAMS(header), SIP_HEADER_WITH_PARAMS(cpy));
+
+    return (SipsterSipHeader *) cpy;
 }
 
 SipsterSipHeader* cseq_parse(SipsterSipHeaderEnum id, const char * input) {
@@ -187,6 +231,14 @@ char* cseq_print(SipsterSipHeader * header) {
     return output;
 }
 
+SipsterSipHeader *cseq_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderCSeq *cpy = (SipsterSipHeaderCSeq *) sipster_allocator(sizeof(SipsterSipHeaderCSeq));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderCSeq));
+
+    return (SipsterSipHeader *) cpy;
+}
+
 SipsterSipHeader* ci_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
     SipsterSipHeaderCallID * ci_header = (SipsterSipHeaderCallID *) sipster_init_basic_header(id, sizeof(SipsterSipHeaderCallID));
@@ -210,6 +262,13 @@ char* ci_print(SipsterSipHeader * header) {
     return output;
 }
 
+SipsterSipHeader *ci_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderCallID *cpy = (SipsterSipHeaderCallID *) sipster_allocator(sizeof(SipsterSipHeaderCallID));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderCallID));
+
+    return (SipsterSipHeader *) cpy;
+}
 
 SipsterSipHeader* ct_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
@@ -247,6 +306,20 @@ void ct_destroy(SipsterSipHeader * header) {
     param_destroy((SipsterSipHeaderWithParams*) header);
 }
 
+SipsterSipHeader *ct_hclone(SipsterSipHeader *header) {
+
+    if(!header)
+        return NULL;
+
+    SipsterSipHeaderContentType *cpy = (SipsterSipHeaderContentType *) sipster_allocator(sizeof(SipsterSipHeaderContentType));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderContentType));
+
+    sipster_sip_parameters_clone(SIP_HEADER_WITH_PARAMS(header), SIP_HEADER_WITH_PARAMS(cpy));
+
+    return (SipsterSipHeader *) cpy;
+}
+
 SipsterSipHeader* string_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
     SipsterSipHeaderString * str_header = (SipsterSipHeaderString *) sipster_init_basic_header(id, sizeof(SipsterSipHeaderString));
@@ -270,6 +343,14 @@ char* string_print(SipsterSipHeader * header) {
     return output;
 }
 
+SipsterSipHeader *string_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderString *cpy = (SipsterSipHeaderString *) sipster_allocator(sizeof(SipsterSipHeaderString));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderString));
+
+    return (SipsterSipHeader *) cpy;
+}
+
 SipsterSipHeader* uint_parse(SipsterSipHeaderEnum id, const char * input) {
     std::size_t pos = 0;
     SipsterSipHeaderInteger * num_header = (SipsterSipHeaderInteger *) sipster_init_basic_header(id, sizeof(SipsterSipHeaderInteger));
@@ -291,6 +372,14 @@ char* uint_print(SipsterSipHeader * header) {
     snprintf(output, 60, format, num_header->header.headerName, num_header->number);
 
     return output;
+}
+
+SipsterSipHeader *uint_hclone(SipsterSipHeader *header) {
+    SipsterSipHeaderInteger *cpy = (SipsterSipHeaderInteger *) sipster_allocator(sizeof(SipsterSipHeaderInteger));
+
+    memcpy(cpy, header, sizeof(SipsterSipHeaderInteger));
+
+    return (SipsterSipHeader *) cpy;
 }
 
 SipsterSipHeader * sipster_sip_header_create(size_t size) {
@@ -396,10 +485,10 @@ SipsterSipHeaderLeaf * sipster_get_header(SipsterSipHeaderEnum headerId, Sipster
     return head;
 }
 
-SipsterSipAddress * sipster_parse_address(const char * address) {
+SipsterSipAddress * sipster_address_parse(const char * address) {
     SipsterSipAddress * addr = (SipsterSipAddress *) sipster_allocator(sizeof(SipsterSipAddress));
 
-    int status = sipster_parse_address_inPlace(address, addr);
+    int status = sipster_address_parse_inPlace(address, addr);
     if(status != OK) {
         sipster_free(addr);
         return NULL;
@@ -407,7 +496,7 @@ SipsterSipAddress * sipster_parse_address(const char * address) {
     return addr;
 }
 
-int sipster_parse_address_inPlace(const char * address, SipsterSipAddress * addrObject) {
+int sipster_address_parse_inPlace(const char * address, SipsterSipAddress * addrObject) {
     size_t pos = 0;
 
     if(!addrObject) {
@@ -417,7 +506,7 @@ int sipster_parse_address_inPlace(const char * address, SipsterSipAddress * addr
 
     string uri = "";
     string name = "";
-    if(std::regex_match (addressString, std::regex("([\"A-Za-z0-9 -+,]*)[ ][<]([a-zA-Z]{3,5}):([a-zA-Z0-9.-_+]*)@([a-zA-Z0-9.-_+]*)[.]([a-zA-Z0-9.-_+]*)[>]"))) {
+    if(std::regex_match (addressString, std::regex("([\"A-Za-z0-9 -+,]*[ ])?[<]([a-zA-Z]{3,5}):([a-zA-Z0-9.-_+]*)@([a-zA-Z0-9.-_+]*)[.]([a-zA-Z0-9.-_+]*)[>]"))) {
         name = nextToken(addressString, "<", &pos);
         name = trim(name);
         uri = nextToken(addressString, ">", &pos);
@@ -437,9 +526,9 @@ int sipster_parse_address_inPlace(const char * address, SipsterSipAddress * addr
     string domain = nextToken(uri, ":", &pos);
     string port = nextToken(uri, ";", &pos);
 
-    strncpy(addrObject->user, user.c_str(), user.length());
-    strncpy(addrObject->schema, schema.c_str(), schema.length());
-    strncpy(addrObject->domain, domain.c_str(), domain.length());
+    strncpy(addrObject->user, user.c_str(), sizeof(addrObject->user));
+    strncpy(addrObject->schema, schema.c_str(), sizeof(addrObject->schema));
+    strncpy(addrObject->domain, domain.c_str(), sizeof(addrObject->domain));
     if(!port.empty()) {
         unsigned short portNumber = (unsigned short) strtoul(port.c_str(), NULL, 0);
         addrObject->port = portNumber;
@@ -475,5 +564,91 @@ void sipster_sip_header_append_parameter(SipsterSipHeaderWithParams *header, Sip
                 break;
             }
         }
+    }
+}
+
+char *sipster_address_uri_print(SipsterSipAddress *addr)
+{
+    if(!addr) {
+        return NULL;
+    }
+
+    //addr->port < 1 ? SIP_ADDRESS_FORMAT_NO_PORT : SIP_ADDRESS_FORMAT_WITH_PORT
+    char *uri = (char *) sipster_allocator(300);
+    if(addr->port < 1) {
+        snprintf(uri, 300, SIP_ADDRESS_URI_FORMAT_NO_PORT, addr->schema, addr->user, addr->domain);
+    } else {
+        snprintf(uri, 300, SIP_ADDRESS_URI_FORMAT_WITH_PORT, addr->schema, addr->user, addr->domain, addr->port);
+    }
+
+    return uri;
+}
+
+char *sipster_address_print(SipsterSipAddress *addr)
+{
+    if(!addr) {
+        return NULL;
+    }
+
+    //addr->port < 1 ? SIP_ADDRESS_FORMAT_NO_PORT : SIP_ADDRESS_FORMAT_WITH_PORT
+    char *uri = (char *) sipster_allocator(300);
+    if(addr->port < 1) {
+        snprintf(uri, 300, SIP_ADDRESS_FORMAT_NO_PORT, addr->name, addr->name ? " " : "", addr->schema, addr->user, addr->domain);
+    } else {
+        snprintf(uri, 300, SIP_ADDRESS_FORMAT_WITH_PORT, addr->name, addr->name ? " " : "", addr->schema, addr->user, addr->domain, addr->port);
+    }
+
+    return uri;
+}
+
+SipsterSipAddress * sipster_address_clone(SipsterSipAddress *addr) {
+    if(!addr)
+        return NULL;
+    SipsterSipAddress * addr2 = (SipsterSipAddress *) sipster_allocator(sizeof(SipsterSipAddress));
+    memcpy(addr2, addr, sizeof(SipsterSipAddress));
+    return addr2;
+}
+
+SipsterSipHeader * sipster_sip_header_clone(SipsterSipHeader *header) {
+    if(!header)
+        return NULL;
+    SipsterSipHeader * copy = header_prototypes[header->headerId].clone(header);
+    return copy;
+}
+
+SipsterSipParameter * sipster_sip_parameter_clone(SipsterSipParameter *param) {
+    if(!param)
+        return NULL;
+    SipsterSipParameter * param2 = (SipsterSipParameter *) sipster_allocator(sizeof(SipsterSipParameter));
+    memcpy(param2, param, sizeof(SipsterSipParameter));
+    return param2;
+}
+
+void sipster_sip_parameters_clone(SipsterSipHeaderWithParams *header, SipsterSipHeaderWithParams *cpy) {
+    SipsterSipHeaderWithParams *oldHeader = (SipsterSipHeaderWithParams *) header;
+    SipsterSipHeaderWithParams *newHeader = (SipsterSipHeaderWithParams *) cpy;
+    if(oldHeader->first) {
+        SipsterSipParameter *newFirst = NULL;
+        SipsterSipParameter *newLast = NULL;
+        SipsterSipParameter *current;
+
+        current = oldHeader->first;
+
+        while(current) {
+            if(newLast) {
+                newLast->next = sipster_sip_parameter_clone(current);
+            } else {
+                newLast = sipster_sip_parameter_clone(current);
+                goto skip;
+            }
+            newLast = newLast->next;
+            skip:
+            if(!newFirst) {
+                newFirst = newLast;
+            }
+            current = current->next;
+        }
+
+        newHeader->first = newFirst;
     }
 }

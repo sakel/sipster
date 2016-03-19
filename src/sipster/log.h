@@ -9,6 +9,12 @@ typedef enum {
     LOG_TRACE
 } SipsterLogLevel;
 
+#define SIPSTER_SDP_TRACE(f, ...) (sipster_log("SDP", LOG_TRACE, f, ##__VA_ARGS__))
+#define SIPSTER_SDP_DEBUG(f, ...) (sipster_log("SDP", LOG_DEBUG, f, ##__VA_ARGS__))
+#define SIPSTER_SDP_INFO(f, ...) (sipster_log("SDP", LOG_INFO, f, ##__VA_ARGS__))
+#define SIPSTER_SDP_WARN(f, ...) (sipster_log("SDP", LOG_WARN, f, ##__VA_ARGS__))
+#define SIPSTER_SDP_ERROR(f, ...) (sipster_log("SDP", LOG_ERROR, f, ##__VA_ARGS__))
+
 #define SIPSTER_SIP_TRACE(f, ...) (sipster_log("SIP", LOG_TRACE, f, ##__VA_ARGS__))
 #define SIPSTER_SIP_DEBUG(f, ...) (sipster_log("SIP", LOG_DEBUG, f, ##__VA_ARGS__))
 #define SIPSTER_SIP_INFO(f, ...) (sipster_log("SIP", LOG_INFO, f, ##__VA_ARGS__))

@@ -66,6 +66,32 @@ TEST(test_parse_params, test_parse_params_1) {
     EXPECT_TRUE(token.empty());
 }
 
+TEST(test_addr_parse_params1, test_parse_addr_params_1) {
+    std::size_t pos = 0;
+
+    string input = "<sip:bob@marley.com>";
+    string token = nextToken(input, "<", &pos);
+    SIPSTER_SIP_DEBUG("%s __ %d", token.c_str(), pos);
+    EXPECT_STREQ("", token.c_str());
+
+    token = nextToken(input, ">", &pos);
+    SIPSTER_SIP_DEBUG("%s __ %d", token.c_str(), pos);
+    EXPECT_STREQ("sip:bob@marley.com", token.c_str());
+}
+
+TEST(test_addr_parse_params2, test_parse_addr_params_2) {
+    std::size_t pos = 0;
+
+    string input = "dddd <sip:bob@marley.com>";
+    string token = nextToken(input, "<", &pos);
+    token = trim(token);
+    SIPSTER_SIP_DEBUG("%s __ %d", token.c_str(), pos);
+    EXPECT_STREQ("dddd", token.c_str());
+
+    token = nextToken(input, ">", &pos);
+    SIPSTER_SIP_DEBUG("%s __ %d", token.c_str(), pos);
+    EXPECT_STREQ("sip:bob@marley.com", token.c_str());
+}
 
 TEST(test_req_line_parser, test_req_line_parser_1) {
 

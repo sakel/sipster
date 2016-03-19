@@ -2,6 +2,7 @@
 #include <sipster/log.h>
 #include <string>
 #include "utils.h"
+#include "sip_headers_private.h"
 
 using namespace std;
 
@@ -377,7 +378,7 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
 
     SipsterSipHeaderLeaf * header = response->firstHeader;
     while(header) {
-        char * headerLine = sipster_request_print_header(header->header);
+        char * headerLine = sipster_response_print_header(header->header);
         header->header = NULL;
         SIPSTER_SIP_DEBUG("FOR HEADER printing: %s", headerLine);
         len = strlen(headerLine);
@@ -428,7 +429,8 @@ int sipster_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, Sipst
     return status;
 }
 
-SipsterSipResponse * sipster_request_create_response(SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body) {
+SipsterSipResponse * sipster_request_create_response(SipsterSipHandle *sipsterSipHandle, SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body) {
+    char rportNumber[6];
     SipsterSipParameter *toTag = NULL;
     SipsterSipParameter *rport = NULL;
     SipsterSipResponse * response = (SipsterSipResponse *) sipster_allocator(sizeof(SipsterSipResponse));
@@ -444,26 +446,35 @@ SipsterSipResponse * sipster_request_create_response(SipsterSipRequest * request
     }
     SipsterSipHeaderLeaf * current = request->firstHeader;
     SipsterSipHeaderWithParams * t = NULL;
+    SipsterSipHeader *headerCopy = NULL;
     while(current) {
-        switch(current->header->headerId) {
+        headerCopy = sipster_sip_header_clone(current->header);
+        switch(headerCopy->headerId) {
         case SIP_HEADER_CONTACT:
             goto skip_header;
         case SIP_HEADER_VIA:
-            rport = sipster_sip_parameter_create("rport", "5061");
-            sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) current->header, rport);
-            t = (SipsterSipHeaderWithParams *) current->header;
+
+            rport = sipster_sip_parameter_get("rport", SIP_HEADER_WITH_PARAMS_FIRST(headerCopy));
+            if(rport) {
+                //RFC 3581
+                snprintf(rportNumber, sizeof(rportNumber), "%u", sipsterSipHandle->rport);
+                rport = sipster_sip_parameter_create("rport", rportNumber);
+                sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) headerCopy, rport);
+            }
+            t = (SipsterSipHeaderWithParams *) headerCopy;
             SIPSTER_SIP_DEBUG("%s", t->header.headerName);
             break;
         case SIP_HEADER_TO:
             if(toTag) {
                 SIPSTER_SIP_DEBUG("TO TAG: %s=%s", toTag->name, toTag->value);
-                sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) current->header, toTag);
+                sipster_sip_header_append_parameter((SipsterSipHeaderWithParams *) headerCopy, toTag);
             }
             break;
         default:
             break;
         }
-        response->lastHeader = sipster_append_new_header(response->lastHeader, current->header);
+
+        response->lastHeader = sipster_append_new_header(response->lastHeader, headerCopy);
         if(!response->firstHeader) {
             response->firstHeader = response->lastHeader;
         }
