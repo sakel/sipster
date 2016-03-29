@@ -6,7 +6,7 @@
 
 using namespace std;
 
-int sipster_request_parse_line(const char * input, SipsterSipRequest * sipRequest) {
+int sipster_sip_request_parse_line(const char *input, SipsterSipRequest *sipRequest) {
     string inputData;
     std::size_t pos = 0;
     int i;
@@ -40,13 +40,13 @@ int sipster_request_parse_line(const char * input, SipsterSipRequest * sipReques
     return OK;
 }
 
-SipsterSipRequest *sipster_request_create() {
+SipsterSipRequest *sipster_sip_request_create() {
     SipsterSipRequest * request = (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipRequest));
 
     return request;
 }
 
-void sipster_request_destroy(SipsterSipRequest *request) {
+void sipster_sip_request_destroy(SipsterSipRequest *request) {
     if(request) {
         if(request->requestLine.requestUri) {
             free(request->requestLine.requestUri);
@@ -55,18 +55,18 @@ void sipster_request_destroy(SipsterSipRequest *request) {
     }
 }
 
-SipsterSipResponse *sipster_response_create() {
+SipsterSipResponse *sipster_sip_response_create() {
     return (SipsterSipResponse *) sipster_allocator(sizeof(SipsterSipResponse));
 }
 
-void sipster_response_destroy(SipsterSipResponse *response) {
+void sipster_sip_response_destroy(SipsterSipResponse *response) {
     if(response) {
         sipster_free(response);
     }
 
 }
 
-int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResponse) {
+int sipster_sip_response_parse_line(const char *input, SipsterSipResponse *sipResponse) {
     // Status-Line  =  SIP-Version SP Status-Code SP Reason-Phrase CRLF
     string inputData;
     std::size_t pos = 0;
@@ -100,7 +100,7 @@ int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResp
     return OK;
 }
 
-SipsterSipHeader * sipster_request_parse_header(const char * input) {
+SipsterSipHeader *sipster_sip_request_parse_header(const char *input) {
     std::size_t pos = 0;
     int i = 0;
     string headerString = nextToken(input, ":", &pos);
@@ -119,7 +119,7 @@ SipsterSipHeader * sipster_request_parse_header(const char * input) {
     return NULL;
 }
 
-char * sipster_request_print_header(SipsterSipHeader * header) {
+char *sipster_sip_request_print_header(SipsterSipHeader *header) {
     SIPSTER_SIP_DEBUG("PRINTING HEADER: %s", header->headerName);
     const SipsterSipHeaderMap hmap = header_prototypes[header->headerId];
     char * headerLine = hmap.print(header);
@@ -128,7 +128,7 @@ char * sipster_request_print_header(SipsterSipHeader * header) {
     return headerLine;
 }
 
-char * sipster_request_print_line(SipsterSipRequestLine * line) {
+char *sipster_sip_request_print_line(SipsterSipRequestLine *line) {
     const char * const format = "%s %s %s";
     char * output = (char *) sipster_allocator(150);
 
@@ -137,7 +137,7 @@ char * sipster_request_print_line(SipsterSipRequestLine * line) {
     return output;
 }
 
-char * sipster_response_print_line(SipsterSipResponseLine * line) {
+char *sipster_sip_response_print_line(SipsterSipResponseLine *line) {
     const char * const format = "%s %d %s";
     char * output = (char *) sipster_allocator(150);
 
@@ -146,15 +146,15 @@ char * sipster_response_print_line(SipsterSipResponseLine * line) {
     return output;
 }
 
-SipsterSipHeader * sipster_response_parse_header(const char * input) {
-    return sipster_request_parse_header(input);
+SipsterSipHeader *sipster_sip_response_parse_header(const char *input) {
+    return sipster_sip_request_parse_header(input);
 }
 
-char * sipster_response_print_header(SipsterSipHeader * header) {
-    return sipster_request_print_header(header);
+char *sipster_sip_response_print_header(SipsterSipHeader *header) {
+    return sipster_sip_request_print_header(header);
 }
 
-SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *result) {
+SipsterSipRequest *sipster_sip_request_parse(const char *input, size_t size, int *result) {
     int res = -1;
     std::size_t pos = 0;
     SipsterSipHeaderContentLength * content_length;
@@ -163,13 +163,13 @@ SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *re
     content_length = NULL;
     content_type = NULL;
 
-    SipsterSipRequest * request = sipster_request_create();
+    SipsterSipRequest * request = sipster_sip_request_create();
 
     string line = nextToken(input, "\r\n", &pos);
 
-    res = sipster_request_parse_line(line.c_str(), request);
+    res = sipster_sip_request_parse_line(line.c_str(), request);
     if(res != 0) {
-        sipster_request_destroy(request);
+        sipster_sip_request_destroy(request);
         goto completed;
     }
 
@@ -179,7 +179,7 @@ SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *re
     while(!line.empty()) {
 
         //TODO --> should validate data
-        SipsterSipHeader * header = sipster_request_parse_header(line.c_str());
+        SipsterSipHeader * header = sipster_sip_request_parse_header(line.c_str());
 
         //TODO --> should proceed only if data is valid
 
@@ -226,7 +226,7 @@ completed:
     return request;
 }
 
-SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
+SipsterSipMessagePrint *sipster_sip_request_print(SipsterSipRequest *request) {
     char * output;
     int offset = 0;
     int len = 0;
@@ -242,7 +242,7 @@ SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
     }
     output = (char *) sipster_allocator(allocationSize);
 
-    char * requestLine = (char *) sipster_request_print_line(&request->requestLine);
+    char * requestLine = (char *) sipster_sip_request_print_line(&request->requestLine);
     len = strlen(requestLine);
     strncpy(output+offset, requestLine, len);
     offset += len;
@@ -253,7 +253,7 @@ SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
 
     SipsterSipHeaderLeaf * header = request->firstHeader;
     while(header) {
-        char * headerLine = sipster_request_print_header(header->header);
+        char * headerLine = sipster_sip_request_print_header(header->header);
         header->header = NULL;
         SIPSTER_SIP_DEBUG("FOR HEADER printing: %s", headerLine);
         len = strlen(headerLine);
@@ -282,7 +282,7 @@ SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request) {
     return print;
 }
 
-SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *result) {
+SipsterSipResponse *sipster_sip_response_parse(const char *input, size_t size, int *result) {
     int res = -1;
     std::size_t pos = 0;
     SipsterSipHeaderContentLength * content_length;
@@ -291,13 +291,13 @@ SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *
     content_length = NULL;
     content_type = NULL;
 
-    SipsterSipResponse * response = sipster_response_create();
+    SipsterSipResponse * response = sipster_sip_response_create();
 
     string line = nextToken(input, "\r\n", &pos);
 
-    res = sipster_response_parse_line(line.c_str(), response);
+    res = sipster_sip_response_parse_line(line.c_str(), response);
     if(res != 0) {
-        sipster_response_destroy(response);
+        sipster_sip_response_destroy(response);
         goto completed;
     }
 
@@ -307,7 +307,7 @@ SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *
     while(!line.empty()) {
 
         //TODO --> should validate data
-        SipsterSipHeader * header = sipster_request_parse_header(line.c_str());
+        SipsterSipHeader * header = sipster_sip_request_parse_header(line.c_str());
 
         //TODO --> should proceed only if data is valid
 
@@ -351,7 +351,7 @@ completed:
     return response;
 }
 
-SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
+SipsterSipMessagePrint *sipster_sip_response_print(SipsterSipResponse *response) {
     char * output;
     int offset = 0;
     int len = 0;
@@ -367,7 +367,7 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
     }
     output = (char *) sipster_allocator(allocationSize);
 
-    char * responseLine = (char *) sipster_response_print_line(&response->responseLine);
+    char * responseLine = (char *) sipster_sip_response_print_line(&response->responseLine);
     len = strlen(responseLine);
     strncpy(output+offset, responseLine, len);
     offset += len;
@@ -378,7 +378,7 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
 
     SipsterSipHeaderLeaf * header = response->firstHeader;
     while(header) {
-        char * headerLine = sipster_response_print_header(header->header);
+        char * headerLine = sipster_sip_response_print_header(header->header);
         header->header = NULL;
         SIPSTER_SIP_DEBUG("FOR HEADER printing: %s", headerLine);
         len = strlen(headerLine);
@@ -409,8 +409,8 @@ SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response) {
     return print;
 }
 
-int sipster_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response) {
-    SipsterSipMessagePrint * message = sipster_response_print(response);
+int sipster_sip_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response) {
+    SipsterSipMessagePrint * message = sipster_sip_response_print(response);
     int status = handle->sendResponse(handle, leg, response, message->output, message->size);
 
     // Maybe do some other magic...
@@ -418,10 +418,9 @@ int sipster_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, Sips
     return status;
 }
 
-int sipster_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request) {
+int sipster_sip_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request) {
 
-
-    SipsterSipMessagePrint * message = sipster_request_print(request);
+    SipsterSipMessagePrint * message = sipster_sip_request_print(request);
     int status = handle->sendRequest(handle, leg, request, message->output, message->size);
 
     // Maybe do some other magic...
@@ -429,7 +428,9 @@ int sipster_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, Sipst
     return status;
 }
 
-SipsterSipResponse * sipster_request_create_response(SipsterSipHandle *sipsterSipHandle, SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body) {
+SipsterSipResponse *sipster_sip_request_create_response(SipsterSipHandle *sipsterSipHandle, SipsterSipRequest *request,
+                                                        SipsterSipCallLeg *leg, SipsterSipStatusEnum status,
+                                                        SipsterSipContentBody *body) {
     char rportNumber[6];
     SipsterSipParameter *toTag = NULL;
     SipsterSipParameter *rport = NULL;
@@ -513,4 +514,18 @@ skip_header:
     cl->number = len;
 
     return response;
+}
+
+SipsterSipRequest *sipster_sip_request_create_template(SipsterSipCallLeg *leg, SipsterSipMethodEnum method) {
+    SipsterSipRequest *request = (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipRequest));
+
+    request->requestLine.method.methodId = method;
+    request->requestLine.method.method = method_names[method];
+    request->requestLine.requestUri = sipster_address_uri_print(&leg->to);
+    request->requestLine.version = SIP_PROTOCOL;
+
+
+
+
+    return request;
 }

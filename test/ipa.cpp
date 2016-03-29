@@ -39,7 +39,7 @@ void *threadSender(void *data) {
                                           request_handler, response_handler, sipster);
         SipsterSipRequest *request;
 //        memset(&request, 0, sizeof(request));
-        request = sipster_request_create();
+        request = sipster_sip_request_create();
         request->requestLine.method.method = method_names[SIP_METHOD_INVITE];
         request->requestLine.method.methodId = SIP_METHOD_INVITE;
         request->requestLine.version = SIP_PROTOCOL;
@@ -119,7 +119,7 @@ Content-Length: 0
 
 
         SIPSTER_DEBUG("Sending msg");
-        sipster_request_send((SipsterSipHandle *) sipster, leg, request);
+    sipster_sip_request_send((SipsterSipHandle *) sipster, leg, request);
 //        sleep(2);
 //}
 
@@ -159,8 +159,8 @@ int request_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, S
     SIPSTER_DEBUG("GOT REQUEST OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
     switch(request->requestLine.method.methodId) {
         case SIP_METHOD_REGISTER:
-        response = sipster_request_create_response(sipsterHandle, request, leg, SIP_STATUS_200_OK, NULL);
-        ret = sipster_request_reply(sipsterHandle, leg, response);
+        response = sipster_sip_request_create_response(sipsterHandle, request, leg, SIP_STATUS_200_OK, NULL);
+        ret = sipster_sip_request_reply(sipsterHandle, leg, response);
         if(ret) {
             SIPSTER_ERROR("ERROR Sending reply");
         }

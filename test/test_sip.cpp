@@ -98,11 +98,11 @@ TEST(test_req_line_parser, test_req_line_parser_1) {
     SipsterSipRequest *request;
     char a[] = "INVITE sip:bob@biloxi.com SIP/2.0";
 
-    request = sipster_request_create();
+    request = sipster_sip_request_create();
 
     EXPECT_TRUE(request);
 
-    int res = sipster_request_parse_line(a, request);
+    int res = sipster_sip_request_parse_line(a, request);
 
     SIPSTER_SIP_DEBUG(request->requestLine.method.method);
 
@@ -112,18 +112,18 @@ TEST(test_req_line_parser, test_req_line_parser_1) {
     EXPECT_STREQ("sip:bob@biloxi.com", request->requestLine.requestUri);
     EXPECT_STREQ("SIP/2.0", request->requestLine.version);
 
-    sipster_request_destroy(request);
+    sipster_sip_request_destroy(request);
 }
 
 TEST(test_res_line_parser, test_res_line_parser_1) {
     SipsterSipResponse * response;
     char a[] = "SIP/2.0 404 The number you have dialed is not in service";
 
-    response = sipster_response_create();
+    response = sipster_sip_response_create();
 
     EXPECT_TRUE(response);
 
-    int res = sipster_response_parse_line(a, response);
+    int res = sipster_sip_response_parse_line(a, response);
 
     SIPSTER_SIP_DEBUG(response->responseLine.status.reason);
 
@@ -132,7 +132,7 @@ TEST(test_res_line_parser, test_res_line_parser_1) {
     EXPECT_EQ(SIP_STATUS_404_NOT_FOUND, response->responseLine.status.status);
     EXPECT_EQ(404, response->responseLine.status.statusCode);
 
-    //sipster_response_destroy(response);
+    //sipster_sip_response_destroy(response);
 }
 
 TEST(test_to_parse_print, test_to_parse_print_1) {
@@ -141,7 +141,7 @@ TEST(test_to_parse_print, test_to_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(to);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(to);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_TO, header->headerId);
     EXPECT_STREQ("To", header->headerName);
@@ -155,7 +155,7 @@ TEST(test_to_parse_print, test_to_parse_print_1) {
     EXPECT_STREQ("1928301774", param->value);
     EXPECT_FALSE(param->next);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(to, pHeader);
 
@@ -167,7 +167,7 @@ TEST(test_from_parse_print, test_from_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(from);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(from);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_FROM, header->headerId);
     EXPECT_STREQ("From", header->headerName);
@@ -181,7 +181,7 @@ TEST(test_from_parse_print, test_from_parse_print_1) {
     EXPECT_STREQ("1928301774", param->value);
     EXPECT_FALSE(param->next);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(from, pHeader);
 }
@@ -192,7 +192,7 @@ TEST(test_via_parse_print, test_via_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(via);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(via);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_VIA, header->headerId);
     EXPECT_STREQ("Via", header->headerName);
@@ -206,7 +206,7 @@ TEST(test_via_parse_print, test_via_parse_print_1) {
     EXPECT_STREQ("z9hG4bKnashds8", param->value);
     EXPECT_FALSE(param->next);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(via, pHeader);
 }
@@ -216,7 +216,7 @@ TEST(test_cl_parse_print, test_cl_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(clen);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(clen);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_CONTENT_LENGTH, header->headerId);
     EXPECT_STREQ("Content-Length", header->headerName);
@@ -224,7 +224,7 @@ TEST(test_cl_parse_print, test_cl_parse_print_1) {
     SipsterSipHeaderContentLength * headerCl = (SipsterSipHeaderContentLength *) header;
     EXPECT_EQ((unsigned int)349, headerCl->number);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(clen, pHeader);
 }
@@ -234,7 +234,7 @@ TEST(test_ct_parse_print, test_ct_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(ct);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(ct);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_CONTENT_TYPE, header->headerId);
     EXPECT_STREQ("Content-Type", header->headerName);
@@ -247,7 +247,7 @@ TEST(test_ct_parse_print, test_ct_parse_print_1) {
     EXPECT_STREQ("ISO-8859-4", param->value);
     EXPECT_FALSE(param->next);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(ct, pHeader);
 }
@@ -258,7 +258,7 @@ TEST(test_ua_parse_print, test_ua_parse_print_1) {
 
     SIPSTER_SIP_INFO("Parsing header");
 
-    SipsterSipHeader * header = sipster_request_parse_header(ua);
+    SipsterSipHeader * header = sipster_sip_request_parse_header(ua);
     EXPECT_TRUE(header);
     EXPECT_EQ(SIP_HEADER_USER_AGENT, header->headerId);
     EXPECT_STREQ("User-Agent", header->headerName);
@@ -266,7 +266,7 @@ TEST(test_ua_parse_print, test_ua_parse_print_1) {
     SipsterSipHeaderUserAgent * headerUa = (SipsterSipHeaderUserAgent *) header;
     EXPECT_STREQ("LTek client sofia-sip/1.12.11devel", headerUa->data);
 
-    char * pHeader = sipster_request_print_header(header);
+    char * pHeader = sipster_sip_request_print_header(header);
     SIPSTER_SIP_DEBUG(pHeader);
     EXPECT_STREQ(ua, pHeader);
 }
@@ -301,7 +301,7 @@ TEST(test_request_parse_print, test_request_parse_print_1) {
     printf("%s\n", invite.c_str());
 
 
-    SipsterSipRequest * req = sipster_request_parse(invite.c_str(), invite.length(), &result);
+    SipsterSipRequest * req = sipster_sip_request_parse(invite.c_str(), invite.length(), &result);
     EXPECT_TRUE(req);
     EXPECT_EQ(SIP_METHOD_INVITE, req->requestLine.method.methodId);
 
@@ -315,7 +315,7 @@ TEST(test_request_parse_print, test_request_parse_print_1) {
 
     SIPSTER_SIP_DEBUG("==============================================================");
 
-    SipsterSipMessagePrint * print = sipster_request_print(req);
+    SipsterSipMessagePrint * print = sipster_sip_request_print(req);
     EXPECT_TRUE(print);
     EXPECT_TRUE(print->output);
     SIPSTER_SIP_DEBUG(print->output);
@@ -348,7 +348,7 @@ TEST(test_response_parse_print, test_response_parse_print_1) {
                 "a=rtpmap:0 PCMU/8000\r\n"+
                 "\r\n";
 
-    SipsterSipResponse * res = sipster_response_parse(response.c_str(), response.length(), &result);
+    SipsterSipResponse * res = sipster_sip_response_parse(response.c_str(), response.length(), &result);
 
     EXPECT_TRUE(res);
     EXPECT_EQ(SIP_STATUS_200_OK, res->responseLine.status.status);
@@ -363,7 +363,7 @@ TEST(test_response_parse_print, test_response_parse_print_1) {
 
     SIPSTER_SIP_DEBUG("==============================================================");
 
-    SipsterSipMessagePrint * print = sipster_response_print(res);
+    SipsterSipMessagePrint * print = sipster_sip_response_print(res);
     EXPECT_TRUE(print);
     EXPECT_TRUE(print->output);
     SIPSTER_SIP_DEBUG(print->output);

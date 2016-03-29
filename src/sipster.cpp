@@ -4,7 +4,7 @@
 #include <sipster/log.h>
 #include <stdio.h>
 #include <string.h>
-#include <sipster/sip.h>
+#include <sipster/base.h>
 #include <map>
 
 using namespace std;
@@ -176,14 +176,16 @@ int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
         switch(ret) {
             case MESSAGE_ERROR:
             case MESSAGE_PARSE_ERROR:
-                response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_400_BAD_REQUEST, NULL);
+                response = sipster_sip_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg,
+                                                               SIP_STATUS_400_BAD_REQUEST, NULL);
             break;
             case CALL_NOT_FOUND:
-                response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_481_CALL_TRANSACTION_DOES_NOT_EXIST, NULL);
+                response = sipster_sip_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg,
+                                                               SIP_STATUS_481_CALL_TRANSACTION_DOES_NOT_EXIST, NULL);
             break;
         }
 
-        ret = sipster_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
+        ret = sipster_sip_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
         if(ret != OK) {
             SIPSTER_ERROR("Could not respond to request");
         }
@@ -196,8 +198,8 @@ int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
     }
 
     SIPSTER_DEBUG("CALL LEG OK");
-    response = sipster_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_200_OK, NULL);
-    ret = sipster_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
+    response = sipster_sip_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg, SIP_STATUS_200_OK, NULL);
+    ret = sipster_sip_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
 
     sipster_free(leg);
 
@@ -315,14 +317,14 @@ int send_response(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipst
     return OK;
 }
 
-int sipster_sip_message_handler(Sipster * sipster, const struct sockaddr* addr, char * data, size_t size) {
+int sipster_sip_message_handler(Sipster * sipster, SipsterInetAddress *addr, char * data, size_t size) {
     int parseStatus = MESSAGE_ERROR;
     SIPSTER_TRACE("RECV MSG_LEN: %d\n ===================================\n\n%s ===================================\n\n", size, data);
 
     //NOT SURE if this is the best solution
     if(strncmp(data, SIP_PROTOCOL_AND_TRANSPORT, 4) == 0) {
         SIPSTER_TRACE("Probably a Response message");
-        SipsterSipResponse * response = sipster_response_parse(data, size, &parseStatus);
+        SipsterSipResponse * response = sipster_sip_response_parse(data, size, &parseStatus);
         response->remoteAddr = addr;
         if(parseStatus < OK) {
             SIPSTER_ERROR("Error parsing message - garbage");
@@ -332,7 +334,7 @@ int sipster_sip_message_handler(Sipster * sipster, const struct sockaddr* addr, 
         parseStatus = sipster_process_response(sipster, response);
     } else {
         SIPSTER_TRACE("Probably a Request message");
-        SipsterSipRequest * request = sipster_request_parse(data, size, &parseStatus);
+        SipsterSipRequest * request = sipster_sip_request_parse(data, size, &parseStatus);
         request->remoteAddr = addr;
         if(parseStatus < OK) {
             SIPSTER_ERROR("Error parsing message - garbage");
@@ -349,6 +351,8 @@ end:
 void udp_receive(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags) {
     SIPSTER_TRACE("Receiving");
 
+    SipsterInetAddress *inet = sipster_base_sockaddr_to_sipster((sockaddr *) addr);
+
     if(nread < 1) {
         return;
     }
@@ -360,7 +364,7 @@ void udp_receive(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const str
     }
 
     //TODO check result
-    int status = sipster_sip_message_handler(sipster, addr, buf->base, nread);
+    int status = sipster_sip_message_handler(sipster, inet, buf->base, nread);
     if(status < 0) {
         SIPSTER_ERROR("Message error");
     }
@@ -544,3 +548,4 @@ SipsterSipCallLeg * sipster_sip_call_leg_create_default(SipsterSipLegDirection d
 
     return callLeg;
 }
+

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sipster/sip_enums.h>
 #include <sipster/sip_headers.h>
+#include <sipster/base.h>
 
 #define SIP_METHOD_NAME(id) method_names[id]
 
@@ -66,7 +67,7 @@ struct _SipsterSipRequest {
     SipsterSipHeaderLeaf * firstHeader;
     SipsterSipHeaderLeaf * lastHeader;
     SipsterSipContentBody * content;
-    const struct sockaddr* remoteAddr;
+    SipsterInetAddress * remoteAddr;
 };
 
 struct _SipsterSipResponseMnemonic {
@@ -86,7 +87,7 @@ struct _SipsterSipResponse {
     SipsterSipHeaderLeaf * firstHeader;
     SipsterSipHeaderLeaf * lastHeader;
     SipsterSipContentBody * content;
-    const struct sockaddr* remoteAddr;
+    SipsterInetAddress * remoteAddr;
 };
 
 struct _SipsterSipMessagePrint {
@@ -101,6 +102,7 @@ struct _SipsterSipCallLeg {
     char fromTag[15];
     SipsterSipAddress to;
     char toTag[15];
+    SipsterInetAddress peerAddress;
     leg_request_handler requestHandler;
     leg_response_handler responseHandler;
     void *data;
@@ -113,29 +115,33 @@ struct _SipsterSipHandle {
     unsigned int rport = 5060;
 };
 
-SipsterSipRequest *sipster_request_parse(const char *input, size_t size, int *result);
-SipsterSipMessagePrint * sipster_request_print(SipsterSipRequest * request);
-SipsterSipRequest *sipster_request_create();
-void sipster_request_destroy(SipsterSipRequest *request);
-SipsterSipResponse * sipster_request_create_response(SipsterSipHandle *sipster, SipsterSipRequest * request, SipsterSipCallLeg * leg, SipsterSipStatusEnum status, SipsterSipContentBody *body);
+SipsterSipRequest *sipster_sip_request_parse(const char *input, size_t size, int *result);
+SipsterSipMessagePrint *sipster_sip_request_print(SipsterSipRequest *request);
+SipsterSipRequest *sipster_sip_request_create();
+void sipster_sip_request_destroy(SipsterSipRequest *request);
+SipsterSipResponse *sipster_sip_request_create_response(SipsterSipHandle *sipster, SipsterSipRequest *request,
+                                                        SipsterSipCallLeg *leg, SipsterSipStatusEnum status,
+                                                        SipsterSipContentBody *body);
 
-SipsterSipResponse *sipster_response_parse(const char *input, size_t size, int *result);
-SipsterSipMessagePrint * sipster_response_print(SipsterSipResponse * response);
-SipsterSipResponse *sipster_response_create();
-void sipster_response_destroy(SipsterSipResponse *response);
+SipsterSipResponse *sipster_sip_response_parse(const char *input, size_t size, int *result);
+SipsterSipMessagePrint *sipster_sip_response_print(SipsterSipResponse *response);
+SipsterSipResponse *sipster_sip_response_create();
+void sipster_sip_response_destroy(SipsterSipResponse *response);
 
-int sipster_request_parse_line(const char * input, SipsterSipRequest * sipRequest);
-SipsterSipHeader * sipster_request_parse_header(const char * input);
-char * sipster_request_print_line(SipsterSipRequestLine * line);
-char * sipster_request_print_header(SipsterSipHeader * header);
+int sipster_sip_request_parse_line(const char *input, SipsterSipRequest *sipRequest);
+SipsterSipHeader *sipster_sip_request_parse_header(const char *input);
+char *sipster_sip_request_print_line(SipsterSipRequestLine *line);
+char *sipster_sip_request_print_header(SipsterSipHeader *header);
 
-int sipster_response_parse_line(const char * input, SipsterSipResponse * sipResponse);
-SipsterSipHeader * sipster_response_parse_header(const char * input);
-char * sipster_response_print_line(SipsterSipResponseLine * line);
-char * sipster_response_print_header(SipsterSipHeader * header);
+int sipster_sip_response_parse_line(const char *input, SipsterSipResponse *sipResponse);
+SipsterSipHeader *sipster_sip_response_parse_header(const char *input);
+char *sipster_sip_response_print_line(SipsterSipResponseLine *line);
+char *sipster_sip_response_print_header(SipsterSipHeader *header);
 
-int sipster_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response);
-int sipster_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request);
+int sipster_sip_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response);
+int sipster_sip_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request);
+
+SipsterSipRequest *sipster_sip_request_create_template(SipsterSipCallLeg *leg, SipsterSipMethodEnum method);
 
 #endif // SIP_H
 

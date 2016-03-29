@@ -18,8 +18,199 @@ SipsterSdpHeader * sipster_init_basic_header(SipsterSdpHeaderEnum id, size_t all
     return header;
 }
 
-int sipster_sdp_parse(const char * sdps, SipsterSdp ** sdp) {
+int sipster_sdp_parse(const char * sdps, SipsterSdp ** sdpp) {
+    std::size_t pos = 0;
+    SipsterSdpMedia *media;
+
+    media = NULL;
+
+    SipsterSdp *sdp = sipster_sdp_create();
+    *sdpp = sdp;
+
+    string line = nextToken(sdps, "\r\n", &pos);
+    SIPSTER_SDP_DEBUG(line.c_str());
+
+    while(!line.empty()) {
+
+        //TODO --> should validate data
+        SipsterSdpHeader * header = sipster_sdp_parse_header(line.c_str());
+
+        //TODO --> should proceed only if data is valid
+
+        if(header) {
+            switch(header->headerType) {
+                case SDP_HEADER_VERSION:
+                    sdp->version = (SipsterSdpHeaderVersion *) header;
+                    break;
+                case SDP_HEADER_ORIGIN:
+                    sdp->origin = (SipsterSdpHeaderOrigin *) header;
+                    break;
+                case SDP_HEADER_SESSION_NAME:
+                    sdp->sessionName = (SipsterSdpHeaderSessionName *) header;
+                    break;
+                case SDP_HEADER_SESSION_INFO:
+                    if(media) {
+                        media->title = (SipsterSdpHeaderSessionInfo *) header;
+                    } else {
+                        sdp->sessionInfo = (SipsterSdpHeaderSessionInfo *) header;
+                    }
+                    break;
+                case SDP_HEADER_DESC_URI:
+                    sdp->uri = (SipsterSdpHeaderUri *) header;
+                    break;
+                case SDP_HEADER_EMAIL:
+                    sdp->email = (SipsterSdpHeaderEmail *) header;
+                    break;
+                case SDP_HEADER_PHONE:
+                    sdp->phone = (SipsterSdpHeaderPhone *) header;
+                    break;
+                case SDP_HEADER_CONNECTION_INFO:
+                    if(media) {
+                        media->connection = (SipsterSdpHeaderConnection *) header;
+                    } else {
+                        sdp->connection = (SipsterSdpHeaderConnection *) header;
+                    }
+
+                    break;
+                case SDP_HEADER_TIME_ACTIVE:
+                    sdp->timing = (SipsterSdpHeaderTiming *) header;
+                    break;
+                case SDP_HEADER_ATTRIBUTE:
+                    if(media) {
+                        media->attributes[media->attributeCount] = (SipsterSdpHeaderAttribute *) header;
+                        media->attributeCount++;
+                    } else {
+                        sdp->attributes[sdp->attributeCount] = (SipsterSdpHeaderAttribute *) header;
+                        sdp->attributeCount++;
+                    }
+                    break;
+                case SDP_HEADER_MEDIA:
+                    media = &sdp->media[sdp->mediaCount];
+                    media->mediaHeader = (SipsterSdpHeaderMedia *) header;
+                    sdp->mediaCount++;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        line = nextToken(sdps, "\r\n", &pos);
+    }
+
     return 0;
+}
+
+char * sipster_sdp_print(SipsterSdp * sdp) {
+    char * sdps;
+    int i,j;
+
+    //TODO dynamic size calculation
+    sdps = (char *) sipster_allocator(1000);
+
+    if(sdp->version) {
+        char *prnt = sdp_header_prototypes[sdp->version->header.headerType].print(SDP_HEADER(sdp->version));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->origin) {
+        char *prnt = sdp_header_prototypes[sdp->origin->header.headerType].print(SDP_HEADER(sdp->origin));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->sessionName) {
+        char *prnt = sdp_header_prototypes[sdp->sessionName->header.headerType].print(SDP_HEADER(sdp->sessionName));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->sessionInfo) {
+        char *prnt = sdp_header_prototypes[sdp->sessionInfo->header.headerType].print(SDP_HEADER(sdp->sessionInfo));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->uri) {
+        char *prnt = sdp_header_prototypes[sdp->uri->header.headerType].print(SDP_HEADER(sdp->uri));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->email) {
+        char *prnt = sdp_header_prototypes[sdp->email->header.headerType].print(SDP_HEADER(sdp->email));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->phone) {
+        char *prnt = sdp_header_prototypes[sdp->phone->header.headerType].print(SDP_HEADER(sdp->phone));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    if(sdp->connection) {
+        char *prnt = sdp_header_prototypes[sdp->connection->header.headerType].print(SDP_HEADER(sdp->connection));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    //TODO bandwidth info
+    //TODO There should be multiple TimeDesc combinations
+    if(sdp->timing) {
+        char *prnt = sdp_header_prototypes[sdp->timing->header.headerType].print(SDP_HEADER(sdp->timing));
+        strcat(sdps, prnt);
+        strcat(sdps, "\r\n");
+        sipster_free(prnt);
+    }
+    //TODO Time zone missing
+    //TODO Encryption key
+    for(i = 0; i < sdp->attributeCount; i++) {
+        if(sdp->attributes[i]) {
+            char *prnt = sdp_header_prototypes[sdp->attributes[i]->header.headerType].print(SDP_HEADER(sdp->attributes[i]));
+            strcat(sdps, prnt);
+            strcat(sdps, "\r\n");
+            sipster_free(prnt);
+        }
+    }
+    for(i = 0; i < sdp->mediaCount; i++) {
+        SipsterSdpHeaderMedia *media = sdp->media[i].mediaHeader;
+        if(media) {
+            char *prnt = sdp_header_prototypes[media->header.headerType].print(SDP_HEADER(media));
+            strcat(sdps, prnt);
+            strcat(sdps, "\r\n");
+            sipster_free(prnt);
+
+            SipsterSdpHeaderSessionInfo *mediaTitle = sdp->media[i].title;
+            if(mediaTitle) {
+                prnt = sdp_header_prototypes[mediaTitle->header.headerType].print(SDP_HEADER(mediaTitle));
+                strcat(sdps, prnt);
+                strcat(sdps, "\r\n");
+                sipster_free(prnt);
+            }
+
+            SipsterSdpHeaderConnection *connection = sdp->media[i].connection;
+            if(connection) {
+                prnt = sdp_header_prototypes[connection->header.headerType].print(SDP_HEADER(connection));
+                strcat(sdps, prnt);
+                strcat(sdps, "\r\n");
+                sipster_free(prnt);
+            }
+
+            for (j = 0; j < sdp->media[i].attributeCount; j++) {
+                SipsterSdpHeaderAttribute *attr = sdp->media[i].attributes[j];
+                if (attr) {
+                    char *prnt = sdp_header_prototypes[attr->header.headerType].print(SDP_HEADER(attr));
+                    strcat(sdps, prnt);
+                    strcat(sdps, "\r\n");
+                    sipster_free(prnt);
+                }
+            }
+        }
+    }
+    strcat(sdps, "\r\n");
+
+    return sdps;
 }
 
 SipsterSdp * sipster_sdp_create() {
@@ -30,13 +221,36 @@ SipsterSdp * sipster_sdp_create() {
 
 void sipster_sdp_destroy(SipsterSdp * sdp) {
     if(sdp) {
+        int i,j;
+        if(sdp->version) sipster_sdp_destroy_header(SDP_HEADER(sdp->version));
+        if(sdp->origin) sipster_sdp_destroy_header(SDP_HEADER(sdp->origin));
+        if(sdp->sessionName) sipster_sdp_destroy_header(SDP_HEADER(sdp->sessionName));
+        if(sdp->sessionInfo) sipster_sdp_destroy_header(SDP_HEADER(sdp->sessionInfo));
+        if(sdp->uri) sipster_sdp_destroy_header(SDP_HEADER(sdp->uri));
+        if(sdp->email) sipster_sdp_destroy_header(SDP_HEADER(sdp->email));
+        if(sdp->phone) sipster_sdp_destroy_header(SDP_HEADER(sdp->phone));
+        if(sdp->connection) sipster_sdp_destroy_header(SDP_HEADER(sdp->connection));
+        if(sdp->timing) sipster_sdp_destroy_header(SDP_HEADER(sdp->timing));
+        for(i = 0; i < sdp->attributeCount; i++) {
+            sipster_sdp_destroy_header(SDP_HEADER(sdp->attributes[i]));
+        }
+        for(i = 0; i < sdp->mediaCount; i++) {
+            SipsterSdpMedia * media = &sdp->media[i];
+            if(media->mediaHeader) sipster_sdp_destroy_header(SDP_HEADER(media->mediaHeader));
+            if(media->title) sipster_sdp_destroy_header(SDP_HEADER(media->title));
+            if(media->connection) sipster_sdp_destroy_header(SDP_HEADER(media->connection));
+
+            for(j = 0; j < media->attributeCount; j++) {
+                sipster_sdp_destroy_header(SDP_HEADER(media->attributes[j]));
+            }
+        }
+
         //TODO implement other lower level cleanups
         sipster_free(sdp);
     }
 }
 
 void sdp_no_destroy(SipsterSdpHeader * header) {
-
 }
 
 SipsterSdpHeader* sdp_no_clone(SipsterSdpHeader * header) {
@@ -310,11 +524,47 @@ SipsterSdpHeader* sdp_media_parse(SipsterSdpHeaderEnum headerType, const char * 
 }
 
 char* sdp_media_print(SipsterSdpHeader * header) {
-    return NULL;
+    SipsterSdpHeaderMedia *mediaHeader = (SipsterSdpHeaderMedia *) header;
+
+    char * output;
+    char * portDef;
+    char * ptDef;
+    int i;
+    string params = "";
+    const char * const format2 = "%c=%s %s %s %s";
+    const char * const portFormat1 = "%u";
+    const char * const portFormat2 = "%u/%u";
+
+    output = (char *) sipster_allocator(80);
+    portDef = (char *) sipster_allocator(10);
+    ptDef = (char *) sipster_allocator((mediaHeader->ptsCount * 4) +1);
+
+    if(mediaHeader->portCount > 1) {
+        snprintf(portDef, 10, portFormat2, mediaHeader->port, mediaHeader->portCount);
+    } else {
+        snprintf(portDef, 10, portFormat1, mediaHeader->port);
+    }
+
+    for(i = 0; i < mediaHeader->ptsCount; i++) {
+        char singlept[4];
+        snprintf(singlept, 4, i == 0 ? "%u" : " %u", mediaHeader->pts[i]);
+        strcat(ptDef, singlept);
+    }
+
+    snprintf(output, 80, format2, sdp_header_prototypes[mediaHeader->header.headerType].headerName[0], sdp_media_types[mediaHeader->mediaType].media, portDef, mediaHeader->protocol, ptDef);
+
+    sipster_free(portDef);
+    sipster_free(ptDef);
+
+    return output;
 }
 
 SipsterSdpHeader* sdp_media_clone(SipsterSdpHeader * header) {
-    return NULL;
+    SipsterSdpHeaderMedia *cpy = (SipsterSdpHeaderMedia *) sipster_allocator(sizeof(SipsterSdpHeaderMedia));
+
+    memcpy(cpy, header, sizeof(SipsterSdpHeaderTiming));
+
+    return (SipsterSdpHeader *) cpy;
 }
 
 void sdp_attr_destroy(SipsterSdpHeader * header) {
@@ -515,4 +765,14 @@ SipsterSdpAttribute *cloneAttribute(const SipsterSdpAttribute *attr, size_t size
     memcpy(cpy, attr, sizeof(SipsterSdpAttributeRtpmap));
 
     return (SipsterSdpAttribute *) cpy;
+}
+
+void sipster_sdp_destroy_header(SipsterSdpHeader * header) {
+    if(header) {
+        sdp_header_prototypes[header->headerType].destroy(header);
+    }
+}
+
+SipsterSdpAttribute * sipster_sdp_attribute_create(size_t size) {
+    return (SipsterSdpAttribute *) sipster_allocator(size);
 }

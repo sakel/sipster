@@ -51,7 +51,7 @@ void *threadSender(void *data) {
         request->requestLine.requestUri = (char *) "sip:192.168.1.138:5061";
 
         SIPSTER_DEBUG("Sending msg");
-        int st = sipster_request_send((SipsterSipHandle *) sipster, leg, request);
+        int st = sipster_sip_request_send((SipsterSipHandle *) sipster, leg, request);
         EXPECT_EQ(0, st);
         sleep(2);
     }

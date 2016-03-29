@@ -33,6 +33,8 @@ TEST(test_sdp_v_parse_print, test_sdp_v_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_o_parse_print, test_sdp_o_parse_print_1) {
@@ -58,6 +60,10 @@ TEST(test_sdp_o_parse_print, test_sdp_o_parse_print_1) {
     char * pHeader = sipster_sdp_print_header(header);
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
+
+
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_s_parse_print, test_sdp_s_parse_print_1) {
@@ -79,6 +85,8 @@ TEST(test_sdp_s_parse_print, test_sdp_s_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_i_parse_print, test_sdp_i_parse_print_1) {
@@ -100,6 +108,8 @@ TEST(test_sdp_i_parse_print, test_sdp_i_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_u_parse_print, test_sdp_u_parse_print_1) {
@@ -121,6 +131,8 @@ TEST(test_sdp_u_parse_print, test_sdp_u_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_e_parse_print, test_sdp_e_parse_print_1) {
@@ -142,6 +154,8 @@ TEST(test_sdp_e_parse_print, test_sdp_e_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_p_parse_print, test_sdp_p_parse_print_1) {
@@ -163,6 +177,8 @@ TEST(test_sdp_p_parse_print, test_sdp_p_parse_print_1) {
     SIPSTER_SDP_DEBUG(pHeader);
     EXPECT_STREQ(header_str, pHeader);
 
+    sipster_free(pHeader);
+    sipster_sdp_destroy_header(header);
 }
 
 TEST(test_sdp_c_parse_print, test_sdp_c_parse_print_1) {
@@ -264,17 +280,130 @@ TEST(test_sdp_a_parse_print_2, test_sdp_a_parse_print_2) {
     EXPECT_STREQ(header_str, pHeader);
 }
 
+TEST(test_sdp_m_parse_print_1, test_sdp_m_parse_print_1) {
+
+    char header_str[] = "m=video 51372 RTP/AVP 99";
+
+    SIPSTER_SDP_INFO("Parsing SDP aidio meda header");
+
+    SipsterSdpHeader * header = sipster_sdp_parse_header(header_str);
+    EXPECT_TRUE(header);
+    EXPECT_EQ(SDP_HEADER_MEDIA, header->headerType);
+    EXPECT_EQ('m', header->header);
+
+    SipsterSdpHeaderMedia * headerParsed = (SipsterSdpHeaderMedia *) header;
+    EXPECT_EQ(SDP_MEDIA_VIDEO, headerParsed->mediaType);
+    EXPECT_EQ((unsigned char) 1, headerParsed->ptsCount);
+    EXPECT_EQ((unsigned short) 99 , headerParsed->pts[0]);
+    EXPECT_EQ((unsigned short) 51372, headerParsed->port);
+    EXPECT_EQ((unsigned short) 0, headerParsed->portCount);
+    EXPECT_STREQ("RTP/AVP", headerParsed->protocol);
+
+    char * pHeader = sipster_sdp_print_header(header);
+    SIPSTER_SDP_DEBUG(pHeader);
+    EXPECT_STREQ(header_str, pHeader);
+}
+
+TEST(test_sdp_m_parse_print_2, test_sdp_m_parse_print_2) {
+
+    char header_str[] = "m=video 51372 RTP/AVP 34 97 98 99";
+
+    SIPSTER_SDP_INFO("Parsing SDP aidio meda header");
+
+    SipsterSdpHeader * header = sipster_sdp_parse_header(header_str);
+    EXPECT_TRUE(header);
+    EXPECT_EQ(SDP_HEADER_MEDIA, header->headerType);
+    EXPECT_EQ('m', header->header);
+
+    SipsterSdpHeaderMedia * headerParsed = (SipsterSdpHeaderMedia *) header;
+    EXPECT_EQ(SDP_MEDIA_VIDEO, headerParsed->mediaType);
+    EXPECT_EQ((unsigned char) 4, headerParsed->ptsCount);
+    EXPECT_EQ((unsigned short) 34, headerParsed->pts[0]);
+    EXPECT_EQ((unsigned short) 97, headerParsed->pts[1]);
+    EXPECT_EQ((unsigned short) 98, headerParsed->pts[2]);
+    EXPECT_EQ((unsigned short) 99, headerParsed->pts[3]);
+    EXPECT_EQ((unsigned short) 51372, headerParsed->port);
+    EXPECT_EQ((unsigned short) 0, headerParsed->portCount);
+    EXPECT_STREQ("RTP/AVP", headerParsed->protocol);
+
+    char * pHeader = sipster_sdp_print_header(header);
+    SIPSTER_SDP_DEBUG(pHeader);
+    EXPECT_STREQ(header_str, pHeader);
+}
+
+TEST(test_sdp_m_parse_print_3, test_sdp_m_parse_print_3) {
+
+    char header_str[] = "m=video 51372/2 RTP/AVP 34 97 98 99";
+
+    SIPSTER_SDP_INFO("Parsing SDP aidio meda header");
+
+    SipsterSdpHeader * header = sipster_sdp_parse_header(header_str);
+    EXPECT_TRUE(header);
+    EXPECT_EQ(SDP_HEADER_MEDIA, header->headerType);
+    EXPECT_EQ('m', header->header);
+
+    SipsterSdpHeaderMedia * headerParsed = (SipsterSdpHeaderMedia *) header;
+    EXPECT_EQ(SDP_MEDIA_VIDEO, headerParsed->mediaType);
+    EXPECT_EQ((unsigned char) 4, headerParsed->ptsCount);
+    EXPECT_EQ((unsigned short) 34, headerParsed->pts[0]);
+    EXPECT_EQ((unsigned short) 97, headerParsed->pts[1]);
+    EXPECT_EQ((unsigned short) 98, headerParsed->pts[2]);
+    EXPECT_EQ((unsigned short) 99, headerParsed->pts[3]);
+    EXPECT_EQ((unsigned short) 51372, headerParsed->port);
+    EXPECT_EQ((unsigned short) 2, headerParsed->portCount);
+    EXPECT_STREQ("RTP/AVP", headerParsed->protocol);
+
+    char * pHeader = sipster_sdp_print_header(header);
+    SIPSTER_SDP_DEBUG(pHeader);
+    EXPECT_STREQ(header_str, pHeader);
+}
+
+TEST(test_sdp_parse_print_1, test_sdp_parse_print_1) {
+    SipsterSdp *sdp;
+
+    string sdps = "";
+    sdps = sdps + "v=0\r\n" +
+                "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5\r\n" +
+                "s=SDP Seminar\r\n" +
+                "i=A Seminar on the session description protocol\r\n" +
+                "u=http://www.example.com/seminars/sdp.pdf\r\n" +
+                "e=j.doe@example.com (Jane Doe)\r\n" +
+                "c=IN IP4 224.2.17.12/127\r\n" +
+                "t=2873397496 2873404696\r\n" +
+                "a=recvonly\r\n" +
+                "m=audio 49170 RTP/AVP 0\r\n" +
+                "m=video 51372 RTP/AVP 99\r\n" +
+                "a=rtpmap:99 h263-1998/90000\r\n\r\n";
+
+    SIPSTER_SDP_INFO("Parsing SDP");
+
+    int ret = sipster_sdp_parse(sdps.c_str(), &sdp);
+    EXPECT_EQ(0, ret);
+    EXPECT_TRUE(sdp);
+    EXPECT_EQ((unsigned int) 0, sdp->version->version);
+    EXPECT_EQ((unsigned short) 49170, sdp->media[0].mediaHeader->port);
+    EXPECT_EQ((unsigned short) 51372, sdp->media[1].mediaHeader->port);
+//    EXPECT_EQ('m', header->header);
+
+    char * sdps2 = sipster_sdp_print(sdp);
+    SIPSTER_SDP_DEBUG(sdps2);
+    EXPECT_STREQ(sdps.c_str(), sdps2);
+
+    sipster_sdp_destroy(sdp);
+    sipster_free(sdps2);
+}
+
 /*
-      v=0
-      o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5
-      s=SDP Seminar
-      i=A Seminar on the session description protocol
-      u=http://www.example.com/seminars/sdp.pdf
-      e=j.doe@example.com (Jane Doe)
-      c=IN IP4 224.2.17.12/127
-      t=2873397496 2873404696
-      a=recvonly
-      m=audio 49170 RTP/AVP 0
-      m=video 51372 RTP/AVP 99
-      a=rtpmap:99 h263-1998/90000
+v=0
+o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5
+s=SDP Seminar
+i=A Seminar on the session description protocol
+u=http://www.example.com/seminars/sdp.pdf
+e=j.doe@example.com (Jane Doe)
+c=IN IP4 224.2.17.12/127
+t=2873397496 2873404696
+a=recvonly
+m=audio 49170 RTP/AVP 0
+m=video 51372 RTP/AVP 99
+a=rtpmap:99 h263-1998/90000
  */
