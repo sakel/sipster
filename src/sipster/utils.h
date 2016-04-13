@@ -6,6 +6,7 @@
 #include <functional>
 #include <cctype>
 #include <locale>
+#include <netinet/in.h>
 
 using namespace std;
 

@@ -49,6 +49,6 @@ SipsterSdpHeader * sipster_sdp_parse_header(const char *input);
 char * sipster_sdp_print_header(SipsterSdpHeader * header);
 void sipster_sdp_destroy_header(SipsterSdpHeader * header);
 SipsterSdpAttribute * sipster_sdp_parse_attribute(const char *input);
-SipsterSdpAttribute * sipster_sdp_attribute_create(size_t size);
+SipsterSdpAttribute * sipster_sdp_attribute_create(SipsterSdpAttributeEnum type, size_t size);
 
 #endif // SDP_H

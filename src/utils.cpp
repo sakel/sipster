@@ -1,7 +1,6 @@
-#include "utils.h"
-#include <sipster/log.h>
+#include <sipster/utils.h>
 #include <uuid.h>
-#include <stdio.h>
+#include <netinet/in.h>
 
 using namespace std;
 

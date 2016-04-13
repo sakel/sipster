@@ -1,14 +1,10 @@
 #include <sipster/log.h>
 #include <sipster/sip.h>
-#include <sipster/sip_headers.h>
 
-#include <utils.h>
-#include <stdlib.h>
+#include <sipster/utils.h>
 
 #include <gtest/gtest.h>
-
-#include <string>
-#include <iostream>
+#include <netdb.h>
 
 using namespace std;
 
@@ -336,6 +332,7 @@ TEST(test_response_parse_print, test_response_parse_print_1) {
                 "Call-ID: a84b4c76e66710@pc33.atlanta.com\r\n"+
                 "CSeq: 314159 INVITE\r\n"+
                 "Contact: <sip:bob@192.0.2.4>\r\n"+
+                "Content-Disposition: session\r\n"+
                 "Content-Type: application/sdp\r\n"+
                 "Content-Length: 150\r\n"+
                 "\r\n"+
@@ -356,7 +353,7 @@ TEST(test_response_parse_print, test_response_parse_print_1) {
     EXPECT_TRUE(res->firstHeader);
     EXPECT_TRUE(res->lastHeader);
     EXPECT_TRUE(res->content);
-    EXPECT_EQ(10, res->lastHeader->index+1);
+    EXPECT_EQ(11, res->lastHeader->index+1);
 
     EXPECT_EQ((unsigned int) 150, res->content->length);
     EXPECT_STREQ("application/sdp", res->content->contentType);
@@ -379,5 +376,46 @@ TEST(test_gen_uuid, test_gen_uuid_1) {
     char * randomStr = sipster_generate_random_string(15);
     EXPECT_TRUE(randomStr);
     EXPECT_EQ(15, (int)strlen(randomStr));
+
+}
+
+TEST(test_parse_address_1, test_parse_address_1) {
+    struct addrinfo *result;
+    int res = getaddrinfo("127.0.0.1", "80", NULL, &result);
+
+    SIPSTER_DEBUG("Response: %d", res);
+
+    EXPECT_EQ(0, res);
+}
+
+TEST(test_parse_address_2, test_parse_address_2) {
+    const char * addr1 = "liblab.si:5060";
+    const char * addr2 = "208.97.170.172:5060";
+    const char * addr3 = "liblab.si";
+    const char * addr4 = "208.97.170.172";
+
+    SipsterInetAddress * iaddr1 = sipster_base_inet_address_parse(addr1);
+    EXPECT_TRUE(iaddr1);
+    SIPSTER_INFO("FQDN: %s Port: %d", iaddr1->fqdn, iaddr1->port);
+    EXPECT_STREQ("liblab.si", iaddr1->fqdn);
+    EXPECT_EQ((unsigned short) 5060, iaddr1->port);
+
+    SipsterInetAddress * iaddr2 = sipster_base_inet_address_parse(addr2);
+    EXPECT_TRUE(iaddr2);
+    SIPSTER_INFO("FQDN: %s Port: %d", iaddr2->fqdn, iaddr2->port);
+    EXPECT_STREQ("208.97.170.172", iaddr2->fqdn);
+    EXPECT_EQ((unsigned short) 5060, iaddr2->port);
+
+    SipsterInetAddress * iaddr3 = sipster_base_inet_address_parse(addr3);
+    EXPECT_TRUE(iaddr3);
+    SIPSTER_INFO("FQDN: %s Port: %d", iaddr3->fqdn, iaddr3->port);
+    EXPECT_STREQ("liblab.si", iaddr3->fqdn);
+    EXPECT_EQ((unsigned short) 0, iaddr3->port);
+
+    SipsterInetAddress * iaddr4 = sipster_base_inet_address_parse(addr4);
+    EXPECT_TRUE(iaddr4);
+    SIPSTER_INFO("FQDN: %s Port: %d", iaddr4->fqdn, iaddr4->port);
+    EXPECT_STREQ("208.97.170.172", iaddr4->fqdn);
+    EXPECT_EQ((unsigned short) 0, iaddr4->port);
 
 }

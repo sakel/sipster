@@ -54,7 +54,7 @@ SipsterSipHeader* uint_parse(SipsterSipHeaderEnum, const char *);
 char* uint_print(SipsterSipHeader * header);
 SipsterSipHeader *uint_hclone(SipsterSipHeader *header);
 
-#define SIPSTER_SIP_HEADER_MAP_SIZE 15
+#define SIPSTER_SIP_HEADER_MAP_SIZE 16
 #define HMAP_NULL {NULL_STRING, NULL_STRING, SIP_HEADER_NONE, NULL, NULL, NULL}
 const SipsterSipHeaderMap header_prototypes[] = {
     {"To", "t", SIP_HEADER_TO, addr_parse, addr_print, addr_destroy, addr_hclone},
@@ -72,6 +72,7 @@ const SipsterSipHeaderMap header_prototypes[] = {
     {"Max-Forwards", NULL_STRING, SIP_HEADER_MAX_FORWARDS, uint_parse, uint_print, no_destroy, uint_hclone},
     {"Allow", NULL_STRING, SIP_HEADER_ALLOW, string_parse, string_print, no_destroy, string_hclone},
     {"Supported", NULL_STRING, SIP_HEADER_SUPPORTED, string_parse, string_print, no_destroy, string_hclone},
+    {"Content-Disposition", NULL_STRING, SIP_HEADER_CONTENT_DISPOSITION, string_parse, string_print, no_destroy, string_hclone},
     HMAP_NULL
 };
 

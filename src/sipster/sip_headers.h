@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <sipster/sip_enums.h>
+#include <sipster/base.h>
 
 #define NULL_STRING "\0"
 
@@ -83,10 +84,10 @@ struct _SipsterSipHeaderAddress {
 };
 
 struct _SipsterSipHeaderVia {
-   SipsterSipHeaderWithParams header;
+    SipsterSipHeaderWithParams header;
     const char *protocol;
-    char address[60];
-    SipsterSipAddress *parsedAddress;
+    char address[256];
+    SipsterInetAddress *parsedAddress;
 };
 
 struct _SipsterSipHeaderCSeq {
@@ -144,9 +145,10 @@ void sipster_sip_header_append_parameter(SipsterSipHeaderWithParams *header, Sip
 SipsterSipParameter * sipster_sip_parameter_clone(SipsterSipParameter *param);
 void sipster_sip_parameters_clone(SipsterSipHeaderWithParams *header, SipsterSipHeaderWithParams *cpy);
 
-SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf * leaf, SipsterSipHeader * header);
-void sipster_append_destroy(SipsterSipHeaderLeaf * leaf, int destroyHeader);
-SipsterSipHeaderLeaf * sipster_get_header(SipsterSipHeaderEnum headerId, SipsterSipHeaderLeaf *first, SipsterSipHeaderLeaf *last);
+SipsterSipHeaderLeaf *sipster_sip_append_new_header(SipsterSipHeaderLeaf *leaf, SipsterSipHeader *header);
+void sipster_sip_header_append_destroy(SipsterSipHeaderLeaf *leaf, int destroyHeader);
+SipsterSipHeaderLeaf *sipster_sip_get_header(SipsterSipHeaderEnum headerId, SipsterSipHeaderLeaf *first,
+                                             SipsterSipHeaderLeaf *last);
 
 SipsterSipAddress * sipster_address_parse(const char * address);
 int sipster_address_parse_inPlace(const char * address, SipsterSipAddress * addrObject);

@@ -4,11 +4,14 @@
 
 #include <sipster/sdp_headers.h>
 #include <sdp_private.h>
-#include <utils.h>
+#include <sipster/utils.h>
 
 
-SipsterSdpHeader * sipster_sdp_header_create(size_t size) {
-    return (SipsterSdpHeader *) sipster_allocator(size);
+SipsterSdpHeader *sipster_sdp_header_create(SipsterSdpHeaderEnum headerType, size_t size) {
+    SipsterSdpHeader * header = (SipsterSdpHeader *) sipster_allocator(size);
+    header->headerType = headerType;
+    header->header = sdp_header_prototypes[headerType].headerName[0];
+    return header;
 }
 
 void sipster_sdp_header_destroy(SipsterSdpHeader * header) {

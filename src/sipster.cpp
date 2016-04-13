@@ -1,10 +1,8 @@
 #include <sipster/sipster.h>
 #include <uv.h>
-#include <utils.h>
+#include <sipster/utils.h>
 #include <sipster/log.h>
-#include <stdio.h>
-#include <string.h>
-#include <sipster/base.h>
+#include <sipster/sdp.h>
 #include <map>
 
 using namespace std;
@@ -32,14 +30,124 @@ typedef struct {
     uv_udp_send_cb sentCallback;
 } SipsterUdpJob;
 
+SipsterSipCallLeg *sipster_sip_call_leg_create_from_str_address(Sipster *sipster, SipsterSipLegDirection direction,
+                                                                const char *callId, const char *fromUri,
+                                                                const char *fromTag, const char *toUri,
+                                                                const char *toTag,
+                                                                SipsterInetAddress *local, SipsterInetAddress *peer,
+                                                                leg_request_handler requestHandler,
+                                                                leg_response_handler responseHandler, void *data) {
+    SipsterSipCallLeg * callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
 
-int sipster_get_call_leg_for_request(Sipster *sipster, SipsterSipHeaderLeaf *firstHeader, SipsterSipHeaderLeaf *lastHeader, SipsterSipCallLeg ** existingCallLeg, int createLeg) {
+    callLeg->direction = direction;
+
+    strncpy(callLeg->callId, callId, sizeof(callLeg->callId));
+
+    sipster_address_parse_inPlace(fromUri, &callLeg->from);
+    sipster_address_parse_inPlace(toUri, &callLeg->to);
+
+    memcpy(&callLeg->localAddress, local, sizeof(callLeg->localAddress));
+    memcpy(&callLeg->peerAddress, &peer, sizeof(callLeg->peerAddress));
+
+    if(fromTag) {
+        strncpy(callLeg->fromTag, fromTag, sizeof(callLeg->fromTag)-1);
+    }
+
+    if(toTag) {
+        strncpy(callLeg->toTag, toTag, sizeof(callLeg->toTag)-1);
+    }
+
+    if(!sipster->legs) {
+        sipster->legs = new call_id_t();
+    }
+
+    string sCallId = callId;
+
+    tagged_legs_t *tags = NULL;
+    call_id_t::iterator tagsIterator = sipster->legs->find(sCallId);
+    if(tagsIterator != sipster->legs->end()) {
+        tags = tagsIterator->second;
+    } else {
+        tags = new tagged_legs_t();
+    }
+    tags->insert(pair<string, SipsterSipCallLeg *>(direction == SIP_LEG_INBOUND ? toTag : fromTag, callLeg));
+    sipster->legs->insert(pair<string, tagged_legs_t *>(callId, tags));
+    callLeg->requestHandler = requestHandler;
+    callLeg->responseHandler = responseHandler;
+    callLeg->data = data;
+
+    return callLeg;
+}
+
+SipsterSipCallLeg *sipster_sip_call_leg_create(Sipster *sipster, SipsterSipLegDirection direction, const char *callId,
+                                               SipsterSipAddress *fromUri, const char *fromTag,
+                                               SipsterSipAddress *toUri, const char *toTag,
+                                               SipsterInetAddress *local, SipsterInetAddress *peer,
+                                               leg_request_handler requestHandler,
+                                               leg_response_handler responseHandler, void *data) {
+    SipsterSipCallLeg * callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
+
+    callLeg->direction = direction;
+
+    strncpy(callLeg->callId, callId, sizeof(callLeg->callId));
+
+    memcpy(&callLeg->from, fromUri, sizeof(SipsterSipAddress));
+    memcpy(&callLeg->to, toUri, sizeof(SipsterSipAddress));
+
+    memcpy(&callLeg->localAddress, local, sizeof(callLeg->localAddress));
+    memcpy(&callLeg->peerAddress, peer, sizeof(callLeg->peerAddress));
+
+    if(fromTag) {
+        strncpy(callLeg->fromTag, fromTag, sizeof(callLeg->fromTag)-1);
+    }
+
+    if(toTag) {
+        strncpy(callLeg->toTag, toTag, sizeof(callLeg->toTag)-1);
+    }
+
+    if(!sipster->legs) {
+        sipster->legs = new call_id_t();
+    }
+
+    string sCallId = callId;
+
+    tagged_legs_t *tags = NULL;
+    call_id_t::iterator tagsIterator = sipster->legs->find(sCallId);
+    if(tagsIterator != sipster->legs->end()) {
+        tags = tagsIterator->second;
+    } else {
+        tags = new tagged_legs_t();
+    }
+    tags->insert(pair<string, SipsterSipCallLeg *>(direction == SIP_LEG_INBOUND ? toTag : fromTag, callLeg));
+    sipster->legs->insert(pair<string, tagged_legs_t *>(callId, tags));
+    callLeg->requestHandler = requestHandler;
+    callLeg->responseHandler = responseHandler;
+    callLeg->data = data;
+
+    return callLeg;
+}
+
+SipsterSipCallLeg *sipster_sip_call_leg_create_default(SipsterSipLegDirection direction, SipsterInetAddress *local,
+                                                       SipsterInetAddress *peer, leg_request_handler requestHandler,
+                                                       leg_response_handler responseHandler, void *data) {
+    SipsterSipCallLeg *callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
+
+    callLeg->requestHandler = requestHandler;
+    callLeg->responseHandler = responseHandler;
+    callLeg->data = data;
+    memcpy(&callLeg->localAddress, local, sizeof(callLeg->localAddress));
+    memcpy(&callLeg->peerAddress, &peer, sizeof(callLeg->peerAddress));
+
+    return callLeg;
+}
+
+int sipster_get_call_leg_for_request(Sipster *sipster, SipsterSipRequest *request, SipsterSipCallLeg ** existingCallLeg, int createLeg) {
     SipsterSipCallLeg *callLeg = NULL;
 
-    SipsterSipHeaderLeaf * callIdLeaf = sipster_get_header(SIP_HEADER_CALL_ID, firstHeader, lastHeader);
+    SipsterSipHeaderLeaf * callIdLeaf = sipster_sip_get_header(SIP_HEADER_CALL_ID, request->firstHeader, request->lastHeader);
     if(!callIdLeaf || callIdLeaf->metadata->count != 1) {
         SIPSTER_WARN("Invalid number of call id headers");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
     SipsterSipHeaderCallID *callId = (SipsterSipHeaderCallID *) callIdLeaf->header;
     SIPSTER_DEBUG("Processing callId: %s", callId->data);
@@ -54,14 +162,13 @@ int sipster_get_call_leg_for_request(Sipster *sipster, SipsterSipHeaderLeaf *fir
         legs = legsIterator->second;
     }
 
-    SipsterSipHeaderLeaf * toLeaf = sipster_get_header(SIP_HEADER_TO, firstHeader, lastHeader);
+    SipsterSipHeaderLeaf * toLeaf = sipster_sip_get_header(SIP_HEADER_TO, request->firstHeader, request->lastHeader);
     if(!toLeaf || toLeaf->metadata->count != 1) {
         SIPSTER_WARN("Invalid number of to headers");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
     SipsterSipHeaderTo * toHeader = (SipsterSipHeaderTo *) toLeaf->header;
     SipsterSipParameter *tag = sipster_sip_parameter_get("tag", toHeader->header.first);
-
 
     if(legs && legs->size() > 0 && tag) {
         string tagValue = tag->value;
@@ -74,24 +181,26 @@ int sipster_get_call_leg_for_request(Sipster *sipster, SipsterSipHeaderLeaf *fir
 
     if(!callLeg && tag) {
         SIPSTER_DEBUG("No call leg found for tag");
-        return CALL_NOT_FOUND;
+        return SIPSTER_RETURN_CALL_NOT_FOUND;
     } else if(!callLeg) {
         if(!createLeg) {
-            return CALL_NOT_FOUND;
+            return SIPSTER_RETURN_CALL_NOT_FOUND;
         }
         SIPSTER_DEBUG("Creating new call leg");
-        SipsterSipHeaderLeaf * fromLeaf = sipster_get_header(SIP_HEADER_FROM, firstHeader, lastHeader);
+        SipsterSipHeaderLeaf * fromLeaf = sipster_sip_get_header(SIP_HEADER_FROM, request->firstHeader, request->lastHeader);
         if(!fromLeaf || fromLeaf->metadata->count != 1) {
             SIPSTER_WARN("Invalid number of to headers");
-            return MESSAGE_ERROR;
+            return SIPSTER_RETURN_MESSAGE_ERROR;
         }
         SipsterSipHeaderFrom * fromHeader = (SipsterSipHeaderFrom *) fromLeaf->header;
         SipsterSipParameter *fromTag = sipster_sip_parameter_get("tag", fromHeader->header.first);
 
         char * toTag = sipster_generate_random_string(13);
-        callLeg = sipster_sip_call_leg_create(sipster, SIP_LEG_INBOUND, callId->data, fromHeader->address, fromTag->value, toHeader->address, toTag, sipster->defaultLeg->requestHandler, sipster->defaultLeg->responseHandler, sipster->defaultLeg->data);
+        SipsterInetAddress *localAddress = sipster_base_sockaddr_to_sipster(sipster->udp_server_socket);
+        callLeg = sipster_sip_call_leg_create_from_str_address(sipster, SIP_LEG_INBOUND, callId->data, fromHeader->address, fromTag->value, toHeader->address, toTag, localAddress, request->remoteAddr, sipster->defaultLeg->requestHandler, sipster->defaultLeg->responseHandler, sipster->defaultLeg->data);
+        sipster_free(localAddress);
         if(!callLeg) {
-            return MESSAGE_PARSE_ERROR;
+            return SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
         }
 
 
@@ -100,16 +209,16 @@ int sipster_get_call_leg_for_request(Sipster *sipster, SipsterSipHeaderLeaf *fir
     }
 
     *existingCallLeg = callLeg;
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int sipster_get_call_leg_for_response(Sipster *sipster, SipsterSipHeaderLeaf *firstHeader, SipsterSipHeaderLeaf *lastHeader, SipsterSipCallLeg ** existingCallLeg) {
     SipsterSipCallLeg *callLeg = NULL;
 
-    SipsterSipHeaderLeaf * callIdLeaf = sipster_get_header(SIP_HEADER_CALL_ID, firstHeader, lastHeader);
+    SipsterSipHeaderLeaf * callIdLeaf = sipster_sip_get_header(SIP_HEADER_CALL_ID, firstHeader, lastHeader);
     if(!callIdLeaf || callIdLeaf->metadata->count != 1) {
         SIPSTER_WARN("Invalid number of call id headers");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
     SipsterSipHeaderCallID *callId = (SipsterSipHeaderCallID *) callIdLeaf->header;
     SIPSTER_DEBUG("Processing callId: %s", callId->data);
@@ -124,10 +233,10 @@ int sipster_get_call_leg_for_response(Sipster *sipster, SipsterSipHeaderLeaf *fi
         legs = legsIterator->second;
     }
 
-    SipsterSipHeaderLeaf * fromLeaf = sipster_get_header(SIP_HEADER_FROM, firstHeader, lastHeader);
+    SipsterSipHeaderLeaf * fromLeaf = sipster_sip_get_header(SIP_HEADER_FROM, firstHeader, lastHeader);
     if(!fromLeaf || fromLeaf->metadata->count != 1) {
         SIPSTER_WARN("Invalid number of to headers");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
     SipsterSipHeaderFrom * fromHeader = (SipsterSipHeaderFrom *) fromLeaf->header;
     SipsterSipParameter *fromTag = sipster_sip_parameter_get("tag", fromHeader->header.first);
@@ -143,16 +252,16 @@ int sipster_get_call_leg_for_response(Sipster *sipster, SipsterSipHeaderLeaf *fi
 
     if(!callLeg && fromTag) {
         SIPSTER_DEBUG("No call leg found for tag");
-        return CALL_NOT_FOUND;
+        return SIPSTER_RETURN_CALL_NOT_FOUND;
     } else {
         SIPSTER_DEBUG("Found matching call leg");
     }
 
 
-//    SipsterSipHeaderLeaf * toLeaf = sipster_get_header(SIP_HEADER_TO, firstHeader, lastHeader);
+//    SipsterSipHeaderLeaf * toLeaf = sipster_sip_get_header(SIP_HEADER_TO, firstHeader, lastHeader);
 //    if(!toLeaf || toLeaf->metadata->count != 1) {
 //        SIPSTER_WARN("Invalid number of to headers");
-//        return MESSAGE_ERROR;
+//        return SIPSTER_RETURN_MESSAGE_ERROR;
 //    }
 //    SipsterSipHeaderTo * toHeader = (SipsterSipHeaderTo *) toLeaf->header;
 //    SipsterSipParameter *tag = sipster_sip_parameter_get("tag", toHeader->header.first);
@@ -161,35 +270,49 @@ int sipster_get_call_leg_for_response(Sipster *sipster, SipsterSipHeaderLeaf *fi
 
 
     *existingCallLeg = callLeg;
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
     SipsterSipResponse *response = NULL;
-    SipsterSipHeaderLeaf *firstHeader = request->firstHeader;
-    SipsterSipHeaderLeaf *lastHeader = request->lastHeader;
     SipsterSipCallLeg *leg = NULL;
 
-    int ret = sipster_get_call_leg_for_request(sipster, firstHeader, lastHeader, &leg, 1);
+    int ret = sipster_get_call_leg_for_request(sipster, request, &leg, 1);
     if(ret) {
         //TODO handle error
         switch(ret) {
-            case MESSAGE_ERROR:
-            case MESSAGE_PARSE_ERROR:
+            case SIPSTER_RETURN_MESSAGE_ERROR:
+            case SIPSTER_RETURN_MESSAGE_PARSE_ERROR:
                 response = sipster_sip_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg,
                                                                SIP_STATUS_400_BAD_REQUEST, NULL);
             break;
-            case CALL_NOT_FOUND:
+            case SIPSTER_RETURN_CALL_NOT_FOUND:
                 response = sipster_sip_request_create_response(SIP_SIPSTER_HANDLE(sipster), request, leg,
                                                                SIP_STATUS_481_CALL_TRANSACTION_DOES_NOT_EXIST, NULL);
             break;
         }
 
         ret = sipster_sip_request_reply(SIP_SIPSTER_HANDLE(sipster), leg, response);
-        if(ret != OK) {
+        if(ret != SIPSTER_RETURN_OK) {
             SIPSTER_ERROR("Could not respond to request");
         }
         return ret;
+    }
+
+    if(request->content) {
+        if(strcpy(request->content->contentType, "application/sdp")) {
+            //TODO parse sdp
+            SipsterSdp *sdp;
+            int ret;
+
+            ret = sipster_sdp_parse(request->content->data, &sdp);
+            if(ret) {
+                SIPSTER_ERROR("Could not parse SDP %s", request->content->data);
+                return SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
+            }
+
+            leg->remoteData = sdp;
+        }
     }
 
     if(leg->requestHandler) {
@@ -203,7 +326,7 @@ int sipster_process_request(Sipster * sipster, SipsterSipRequest * request) {
 
     sipster_free(leg);
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int sipster_process_response(Sipster * sipster, SipsterSipResponse * response) {
@@ -216,12 +339,36 @@ int sipster_process_response(Sipster * sipster, SipsterSipResponse * response) {
         return ret;
     }
 
+    SipsterSipHeaderLeaf *toLeaf = sipster_sip_get_header(SIP_HEADER_TO, response->firstHeader, response->lastHeader);
+
+    SipsterSipHeaderTo * to = (SipsterSipHeaderTo *) toLeaf->header;
+    SipsterSipParameter *tag = sipster_sip_parameter_get("tag", to->header.first);
+    if(tag) {
+        strncpy(leg->toTag, tag->value, sizeof(leg->toTag));
+    }
+
+    if(response->content) {
+        if(strcpy(response->content->contentType, "application/sdp")) {
+            //TODO parse sdp
+            SipsterSdp *sdp;
+            int ret;
+
+            ret = sipster_sdp_parse(response->content->data, &sdp);
+            if(ret) {
+                SIPSTER_ERROR("Could not parse SDP %s", response->content->data);
+                return SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
+            }
+
+            leg->remoteData = sdp;
+        }
+    }
+
     if(leg->responseHandler) {
         ret = leg->responseHandler(SIP_SIPSTER_HANDLE(sipster), leg, response, leg->data);
         return ret;
     }
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 void sent_request_cb(uv_udp_send_t* req, int status) {
@@ -264,7 +411,7 @@ int send_request(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipste
     uv_work_t *job;
     SipsterUdpJob * jobData;
     Sipster * sipster = (Sipster *) sipsterHandle->data;
-    struct sockaddr_in *dest;
+    struct sockaddr *dest;
 
     jobData = (SipsterUdpJob *) sipster_allocator(sizeof(SipsterUdpJob));
     jobData->sipster = sipster;
@@ -272,12 +419,9 @@ int send_request(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipste
     jobData->size = size;
     jobData->sentCallback = sent_request_cb;
 
-    dest = (struct sockaddr_in *) sipster_allocator(sizeof(struct sockaddr_in));
-    int status = uv_ip4_addr("192.168.1.138", 5061, dest);
-    if(status != 0) {
-        SIPSTER_DEBUG("Message: %s", uv_strerror(status));
-    }
-    jobData->dest = (struct sockaddr *) dest;
+    dest = sipster_base_sipster_to_sockaddr(request->remoteAddr);
+
+    jobData->dest = dest;
     jobData->freeAddr = 1;
 
     job = (uv_work_t *) sipster_allocator(sizeof(uv_work_t));
@@ -289,7 +433,7 @@ int send_request(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipste
 
     uv_async_send(&sipster->asyncTrigger);
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int send_response(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, SipsterSipResponse *response, char * message, size_t size) {
@@ -302,7 +446,7 @@ int send_response(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipst
     jobData->message = message;
     jobData->size = size;
     jobData->freeAddr = 0;
-    jobData->dest = (struct sockaddr *) response->remoteAddr;
+    jobData->dest = sipster_base_sipster_to_sockaddr(response->remoteAddr);
     jobData->sentCallback = sent_response_cb;
 
     job = (uv_work_t *) sipster_allocator(sizeof(uv_work_t));
@@ -314,11 +458,11 @@ int send_response(SipsterSipHandle *sipsterHandle, SipsterSipCallLeg *leg, Sipst
 
     uv_async_send(&sipster->asyncTrigger);
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int sipster_sip_message_handler(Sipster * sipster, SipsterInetAddress *addr, char * data, size_t size) {
-    int parseStatus = MESSAGE_ERROR;
+    int parseStatus = SIPSTER_RETURN_MESSAGE_ERROR;
     SIPSTER_TRACE("RECV MSG_LEN: %d\n ===================================\n\n%s ===================================\n\n", size, data);
 
     //NOT SURE if this is the best solution
@@ -326,7 +470,7 @@ int sipster_sip_message_handler(Sipster * sipster, SipsterInetAddress *addr, cha
         SIPSTER_TRACE("Probably a Response message");
         SipsterSipResponse * response = sipster_sip_response_parse(data, size, &parseStatus);
         response->remoteAddr = addr;
-        if(parseStatus < OK) {
+        if(parseStatus < SIPSTER_RETURN_OK) {
             SIPSTER_ERROR("Error parsing message - garbage");
             goto end;
         }
@@ -336,7 +480,7 @@ int sipster_sip_message_handler(Sipster * sipster, SipsterInetAddress *addr, cha
         SIPSTER_TRACE("Probably a Request message");
         SipsterSipRequest * request = sipster_sip_request_parse(data, size, &parseStatus);
         request->remoteAddr = addr;
-        if(parseStatus < OK) {
+        if(parseStatus < SIPSTER_RETURN_OK) {
             SIPSTER_ERROR("Error parsing message - garbage");
             goto end;
         }
@@ -368,8 +512,6 @@ void udp_receive(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const str
     if(status < 0) {
         SIPSTER_ERROR("Message error");
     }
-
-    //sipster_free(buf->base);
 }
 
 void udp_allocation(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
@@ -391,11 +533,14 @@ int sipster_init(Sipster ** sipsterPtr, SipsterSipCallLeg *defaultLeg) {
                                                  NULL_STRING,
                                                  SIP_ADDRESS_NONE,
                                                  NULL_STRING,
+                                                 {SIPSTER_IPV4, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, NULL_STRING},
+                                                 {SIPSTER_IPV4, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, NULL_STRING},
                                                  NULL,
                                                  NULL,
                                                  NULL};
     uv_loop_t * loop;
-    int status = OK;
+    struct sockaddr_in *ipv4Socket;
+    int status = SIPSTER_RETURN_OK;
     if(!*sipsterPtr) {
         Sipster * sipster;
         sipster = (Sipster *) sipster_allocator(sizeof(Sipster));
@@ -420,14 +565,17 @@ int sipster_init(Sipster ** sipsterPtr, SipsterSipCallLeg *defaultLeg) {
         sipster->udp_server.data = (void *) sipster;
 
         //TODO Export to api
-        status = uv_ip4_addr("0.0.0.0", 5060, (struct sockaddr_in *) &sipster->udp_server_socket);
+
+        ipv4Socket = (sockaddr_in *) sipster_allocator(sizeof(struct sockaddr_in));
+        status = uv_ip4_addr("0.0.0.0", 5060, ipv4Socket);
         if(status) {
             SIPSTER_ERROR("Could not init UDP server: %s", uv_strerror(status));
             status = -1;
             goto end_new_instance;
         }
+        sipster->udp_server_socket = (sockaddr *) ipv4Socket;
 
-        status = uv_udp_bind(&sipster->udp_server, (struct sockaddr *) &sipster->udp_server_socket, UV_UDP_REUSEADDR);
+        status = uv_udp_bind(&sipster->udp_server, sipster->udp_server_socket, UV_UDP_REUSEADDR);
         if(status) {
             SIPSTER_ERROR("Could not bind port for UDP server: %s", uv_strerror(status));
             status = -1;
@@ -498,54 +646,4 @@ void sipster_deinit(Sipster * sipster) {
     }
 }
 
-SipsterSipCallLeg * sipster_sip_call_leg_create(Sipster *sipster, SipsterSipLegDirection direction, const char * callId, const char * fromUri, const char * fromTag, const char *toUri, const char *toTag,
-                                                leg_request_handler requestHandler, leg_response_handler responseHandler, void *data) {
-    SipsterSipCallLeg * callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
-
-    callLeg->direction = direction;
-
-    strncpy(callLeg->callId, callId, sizeof(callLeg->callId));
-
-    sipster_address_parse_inPlace(fromUri, &callLeg->from);
-    sipster_address_parse_inPlace(toUri, &callLeg->to);
-
-    if(fromTag) {
-        strncpy(callLeg->fromTag, fromTag, sizeof(callLeg->fromTag)-1);
-    }
-
-    if(toTag) {
-        strncpy(callLeg->toTag, toTag, sizeof(callLeg->toTag)-1);
-    }
-
-    if(!sipster->legs) {
-        sipster->legs = new call_id_t();
-    }
-
-    string sCallId = callId;
-
-    tagged_legs_t *tags = NULL;
-    call_id_t::iterator tagsIterator = sipster->legs->find(sCallId);
-    if(tagsIterator != sipster->legs->end()) {
-        tags = tagsIterator->second;
-    } else {
-        tags = new tagged_legs_t();
-    }
-    tags->insert(pair<string, SipsterSipCallLeg *>(direction == SIP_LEG_INBOUND ? toTag : fromTag, callLeg));
-    sipster->legs->insert(pair<string, tagged_legs_t *>(callId, tags));
-    callLeg->requestHandler = requestHandler;
-    callLeg->responseHandler = responseHandler;
-    callLeg->data = data;
-
-    return callLeg;
-}
-
-SipsterSipCallLeg * sipster_sip_call_leg_create_default(SipsterSipLegDirection direction, leg_request_handler requestHandler, leg_response_handler responseHandler, void *data) {
-    SipsterSipCallLeg * callLeg = (SipsterSipCallLeg *) sipster_allocator(sizeof(SipsterSipCallLeg));
-
-    callLeg->requestHandler = requestHandler;
-    callLeg->responseHandler = responseHandler;
-    callLeg->data = data;
-
-    return callLeg;
-}
 

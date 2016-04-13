@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <sipster/log.h>
 #include <unistd.h>
-#include <utils.h>
+#include <sipster/utils.h>
 
 using namespace std;
 
@@ -33,7 +33,7 @@ void *threadSender(void *data) {
 
         SipsterSipCallLeg *leg;
 //        memset(&leg, 0, sizeof(leg));
-        leg = sipster_sip_call_leg_create(sipster, SIP_LEG_OUTBOUND, sipster_generate_uuid(),
+        leg = sipster_sip_call_leg_create_from_str_address(sipster, SIP_LEG_OUTBOUND, sipster_generate_uuid(),
                                           "sip:me@me.com", sipster_generate_random_string(13),
                                           "sip:you@you.com", NULL,
                                           request_handler, response_handler, sipster);
@@ -91,15 +91,15 @@ void *threadSender(void *data) {
         int len = strlen(final_sdp)+2;
         SIP_BODY_CREATE(body, "application/sdp", final_sdp, len);
 
-        request->firstHeader = request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(via));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(from));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(to));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(cseq));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(callId));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(contact));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(ua));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(mf));
-        request->lastHeader = sipster_append_new_header(request->lastHeader, SIP_HEADER(cl));
+        request->firstHeader = request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(via));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(from));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(to));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(cseq));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(callId));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(contact));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(ua));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(mf));
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(cl));
         request->content = body;
 
 /*
@@ -129,7 +129,7 @@ Content-Length: 0
 int main(int argc, char ** argv) {
     static SipsterSipCallLeg defaultLeg = {SIP_LEG_INBOUND, NULL_STRING,
                                                  {"sip", "Test", "test", "liblab.si", 5060},
-                                                 NULL_STRING, SIP_ADDRESS_NONE, NULL_STRING, request_handler, response_handler, NULL};
+                                                 NULL_STRING, SIP_ADDRESS_NONE, NULL_STRING, {SIPSTER_IPV4, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}, request_handler, response_handler, NULL};
 
     setenv("SIPSTER_LOG_LEVEL", "5", 1);
 
@@ -169,7 +169,7 @@ int request_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, S
         break;
     }
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 int response_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, SipsterSipResponse *response, void *data) {
@@ -183,5 +183,5 @@ int response_handler(SipsterSipHandle * sipsterHandle, SipsterSipCallLeg * leg, 
         break;
     }
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }

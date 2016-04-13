@@ -1,6 +1,6 @@
 #include "sipster/sdp.h"
 #include "sdp_private.h"
-#include <utils.h>
+#include <sipster/utils.h>
 #include <sipster/sdp_enums.h>
 #include <sipster/sdp_headers.h>
 #include <sipster/log.h>
@@ -9,14 +9,6 @@
 
 SipsterSdpAttribute *cloneAttribute(const SipsterSdpAttribute *attr, size_t size);
 SipsterSdpMediaTypeEnum sipster_sdp_media_type_decode(const char * input);
-
-SipsterSdpHeader * sipster_init_basic_header(SipsterSdpHeaderEnum id, size_t allocation_size) {
-    SipsterSdpHeader * header = (SipsterSdpHeader *) sipster_sdp_header_create(allocation_size);
-    header->headerType = id;
-    header->header = sdp_header_prototypes[id].headerName[0];
-
-    return header;
-}
 
 int sipster_sdp_parse(const char * sdps, SipsterSdp ** sdpp) {
     std::size_t pos = 0;
@@ -105,7 +97,7 @@ char * sipster_sdp_print(SipsterSdp * sdp) {
     int i,j;
 
     //TODO dynamic size calculation
-    sdps = (char *) sipster_allocator(1000);
+    sdps = (char *) sipster_allocator(2000);
 
     if(sdp->version) {
         char *prnt = sdp_header_prototypes[sdp->version->header.headerType].print(SDP_HEADER(sdp->version));
@@ -269,7 +261,7 @@ char* sdp_no_print(SipsterSdpHeader * header) {
 }
 
 SipsterSdpHeader* sdp_version_parse(SipsterSdpHeaderEnum headerType, const char * data) {
-    SipsterSdpHeaderVersion * header = (SipsterSdpHeaderVersion *) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderVersion));
+    SipsterSdpHeaderVersion * header = (SipsterSdpHeaderVersion *) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderVersion));
 
     header->version = atoi(data);
 
@@ -307,7 +299,7 @@ void sdp_origin_destroy(SipsterSdpHeader * header) {
 SipsterSdpHeader* sdp_origin_parse(SipsterSdpHeaderEnum headerType, const char * input) {
 
     std::size_t pos = 0;
-    SipsterSdpHeaderOrigin* origin_header = (SipsterSdpHeaderOrigin*) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderOrigin));
+    SipsterSdpHeaderOrigin* origin_header = (SipsterSdpHeaderOrigin*) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderOrigin));
 
     string username = nextToken(input, " ", &pos);
     strncpy(origin_header->username, username.c_str(), username.length()+1);
@@ -357,7 +349,7 @@ void sdp_string_destroy(SipsterSdpHeader * header) {
 
 SipsterSdpHeader* sdp_string_parse(SipsterSdpHeaderEnum headerType, const char * input) {
     std::size_t pos = 0;
-    SipsterSdpHeaderString * str_header = (SipsterSdpHeaderString *) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderString));
+    SipsterSdpHeaderString * str_header = (SipsterSdpHeaderString *) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderString));
 
     SIPSTER_SDP_DEBUG(str_header->data);
 
@@ -396,7 +388,7 @@ SipsterSdpHeader* sdp_connection_parse(SipsterSdpHeaderEnum headerType, const ch
 
     std::size_t pos = 0;
     std::size_t pos2 = 0;
-    SipsterSdpHeaderConnection* connection_header = (SipsterSdpHeaderConnection*) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderConnection));
+    SipsterSdpHeaderConnection* connection_header = (SipsterSdpHeaderConnection*) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderConnection));
 
     string nettype = nextToken(input, " ", &pos);
     strncpy(connection_header->nettype, nettype.c_str(), nettype.length()+1);
@@ -449,7 +441,7 @@ void sdp_timing_destroy(SipsterSdpHeader * header) {
 
 SipsterSdpHeader* sdp_timing_parse(SipsterSdpHeaderEnum headerType, const char * input) {
     std::size_t pos = 0;
-    SipsterSdpHeaderTiming* timing_header = (SipsterSdpHeaderTiming*) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderTiming));
+    SipsterSdpHeaderTiming* timing_header = (SipsterSdpHeaderTiming*) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderTiming));
 
     string start = nextToken(input, " ", &pos);
     timing_header->start = atol(start.c_str());
@@ -488,7 +480,7 @@ void sdp_media_destroy(SipsterSdpHeader * header) {
 SipsterSdpHeader* sdp_media_parse(SipsterSdpHeaderEnum headerType, const char * input) {
     std::size_t pos = 0;
     std::size_t pos2 = 0;
-    SipsterSdpHeaderMedia * media_header = (SipsterSdpHeaderMedia*) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderMedia));
+    SipsterSdpHeaderMedia * media_header = (SipsterSdpHeaderMedia*) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderMedia));
 
     string media = nextToken(input, " ", &pos);
     SipsterSdpMediaTypeEnum mt = sipster_sdp_media_type_decode(media.c_str());
@@ -578,7 +570,7 @@ void sdp_attr_destroy(SipsterSdpHeader * header) {
 
 SipsterSdpHeader* sdp_attr_parse(SipsterSdpHeaderEnum headerType, const char * input) {
 
-    SipsterSdpHeaderAttribute* attr_header = (SipsterSdpHeaderAttribute*) sipster_init_basic_header(headerType, sizeof(SipsterSdpHeaderAttribute));
+    SipsterSdpHeaderAttribute* attr_header = (SipsterSdpHeaderAttribute*) sipster_sdp_header_create(headerType, sizeof(SipsterSdpHeaderAttribute));
 
     attr_header->attribute = sipster_sdp_parse_attribute(input);
 
@@ -696,6 +688,25 @@ SipsterSdpAttribute* sdp_attr_fmtp_clone(SipsterSdpAttribute *attr) {
     return cloneAttribute(attr, sizeof(SipsterSdpAttributeFmtp));
 }
 
+SipsterSdpAttribute* sdp_attr_flag_parse(SipsterSdpAttributeEnum type, const char *input) {
+    SipsterSdpAttribute * attr = (SipsterSdpAttribute *) sipster_allocator(sizeof(SipsterSdpAttribute));
+    attr->attributeType = type;
+    return attr;
+}
+
+char* sdp_attr_flag_print(SipsterSdpAttribute *header) {
+    char * output;
+    const char *format = "%c=%s";
+
+    output = (char *) sipster_allocator(sizeof(SipsterSdpAttribute) + 10);
+    snprintf(output, sizeof(SipsterSdpAttribute) + 10, format, sdp_header_prototypes[SDP_HEADER_ATTRIBUTE].headerName[0], sdp_attribute_types[header->attributeType].name);
+    return output;
+}
+
+SipsterSdpAttribute* sdp_attr_flag_clone(SipsterSdpAttribute *attr) {
+    return cloneAttribute(attr, sizeof(SipsterSdpAttribute));
+}
+
 SipsterSdpMediaTypeEnum sipster_sdp_media_type_decode(const char * input) {
     int i = 0;
     string headerString = input;
@@ -773,6 +784,8 @@ void sipster_sdp_destroy_header(SipsterSdpHeader * header) {
     }
 }
 
-SipsterSdpAttribute * sipster_sdp_attribute_create(size_t size) {
-    return (SipsterSdpAttribute *) sipster_allocator(size);
+SipsterSdpAttribute * sipster_sdp_attribute_create(SipsterSdpAttributeEnum type, size_t size) {
+    SipsterSdpAttribute * attr = (SipsterSdpAttribute *) sipster_allocator(size);
+    attr->attributeType = type;
+    return attr;
 }

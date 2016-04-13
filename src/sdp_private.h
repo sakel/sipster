@@ -133,6 +133,10 @@ SipsterSdpAttribute* sdp_attr_fmtp_parse(SipsterSdpAttributeEnum type, const cha
 char* sdp_attr_fmtp_print(SipsterSdpAttribute *header);
 SipsterSdpAttribute* sdp_attr_fmtp_clone(SipsterSdpAttribute *attr);
 
+SipsterSdpAttribute* sdp_attr_flag_parse(SipsterSdpAttributeEnum type, const char *input);
+char* sdp_attr_flag_print(SipsterSdpAttribute *header);
+SipsterSdpAttribute* sdp_attr_flag_clone(SipsterSdpAttribute *attr);
+
 #define SDP_ATTRIBUTE_NULL {NULL_STRING, SDP_ATTRIBUTE_NONE, NULL, NULL, NULL}
 const SipsterSdpAttributeMap sdp_attribute_types[] {
         {"cat", SDP_ATTRIBUTE_CATEGORY, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
@@ -143,7 +147,7 @@ const SipsterSdpAttributeMap sdp_attribute_types[] {
         {"rtpmap", SDP_ATTRIBUTE_RTPMAP, sdp_attr_rtpmap_parse, sdp_attr_rtpmap_print, sdp_attr_rtpmap_clone},
         {"recvonly", SDP_ATTRIBUTE_RECVONLY, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
         {"sendrecv", SDP_ATTRIBUTE_SENDRECV, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
-        {"sendonly", SDP_ATTRIBUTE_SENDONLY, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
+        {"sendonly", SDP_ATTRIBUTE_SENDONLY, sdp_attr_flag_parse, sdp_attr_flag_print, sdp_attr_flag_clone},
         {"inactive", SDP_ATTRIBUTE_INACTIVE, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
         {"orient", SDP_ATTRIBUTE_ORIENT, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},
         {"type", SDP_ATTRIBUTE_TYPE, sdp_attr_no_parse, sdp_attr_no_print, sdp_attr_no_clone},

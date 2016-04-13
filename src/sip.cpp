@@ -1,7 +1,7 @@
 #include "sipster/sip.h"
 #include <sipster/log.h>
 #include <string>
-#include "utils.h"
+#include <sipster/utils.h>
 #include "sip_headers_private.h"
 
 using namespace std;
@@ -13,7 +13,7 @@ int sipster_sip_request_parse_line(const char *input, SipsterSipRequest *sipRequ
 
     if(!input || !sipRequest) {
         SIPSTER_SIP_ERROR("NULL input parameters");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
 
     inputData = input;
@@ -28,7 +28,7 @@ int sipster_sip_request_parse_line(const char *input, SipsterSipRequest *sipRequ
         }
     }
     if(sipRequest->requestLine.method.methodId == SIP_METHOD_NONE) {
-        return MESSAGE_PARSE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
     }
 
     string destinationString = nextToken(inputData, " ", &pos);
@@ -37,7 +37,7 @@ int sipster_sip_request_parse_line(const char *input, SipsterSipRequest *sipRequ
     sipRequest->requestLine.requestUri = strdup(destinationString.c_str());
     sipRequest->requestLine.version = strdup(versionString.c_str());
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 SipsterSipRequest *sipster_sip_request_create() {
@@ -74,7 +74,7 @@ int sipster_sip_response_parse_line(const char *input, SipsterSipResponse *sipRe
 
     if(!input || !sipResponse) {
         SIPSTER_SIP_ERROR("NULL input parameters");
-        return MESSAGE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_ERROR;
     }
     inputData = input;
 
@@ -94,10 +94,10 @@ int sipster_sip_response_parse_line(const char *input, SipsterSipResponse *sipRe
     }
 
     if(sipResponse->responseLine.status.statusCode == SIP_STATUS_NONE) {
-        return MESSAGE_PARSE_ERROR;
+        return SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
     }
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 SipsterSipHeader *sipster_sip_request_parse_header(const char *input) {
@@ -195,7 +195,7 @@ SipsterSipRequest *sipster_sip_request_parse(const char *input, size_t size, int
                 break;
             }
 
-            request->lastHeader = sipster_append_new_header(request->lastHeader, header);
+            request->lastHeader = sipster_sip_append_new_header(request->lastHeader, header);
             if(!request->firstHeader) {
                 request->firstHeader = request->lastHeader;
             }
@@ -230,8 +230,28 @@ SipsterSipMessagePrint *sipster_sip_request_print(SipsterSipRequest *request) {
     char * output;
     int offset = 0;
     int len = 0;
+    unsigned int contentLen = 0;
+
     SipsterSipMessagePrint * print = (SipsterSipMessagePrint *) sipster_allocator(sizeof(SipsterSipMessagePrint));
     size_t allocationSize = 500;
+
+    if(request->content) {
+        contentLen = request->content->length;
+        SipsterSipHeaderLeaf *h = sipster_sip_get_header(SIP_HEADER_CONTENT_TYPE, request->firstHeader, request->lastHeader);
+        if(!h) {
+            SipsterSipHeaderContentType *contentTypeHeader = (SipsterSipHeaderContentType *) sipster_init_basic_header(
+                    SIP_HEADER_CONTENT_TYPE, sizeof(SipsterSipHeaderContentType));
+            strncpy(contentTypeHeader->contentType, request->content->contentType, sizeof(contentTypeHeader->contentType));
+            request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(contentTypeHeader));
+        }
+    }
+    SipsterSipHeaderLeaf *h = sipster_sip_get_header(SIP_HEADER_CONTENT_LENGTH, request->firstHeader, request->lastHeader);
+    if(!h) {
+        SipsterSipHeaderContentLength *contentLengthHeader = (SipsterSipHeaderContentLength *) sipster_init_basic_header(
+                SIP_HEADER_CONTENT_LENGTH, sizeof(SipsterSipHeaderContentLength));
+        contentLengthHeader->number = contentLen;
+        request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(contentLengthHeader));
+    }
 
     if(request->lastHeader) {
         allocationSize += ((request->lastHeader->index+1)*200);
@@ -268,6 +288,7 @@ SipsterSipMessagePrint *sipster_sip_request_print(SipsterSipRequest *request) {
     }
     strncpy(output+offset, "\r\n", 2);
     offset += 2;
+
 
     if(request->content) {
         memcpy(output+offset, request->content->data, request->content->length);
@@ -308,7 +329,11 @@ SipsterSipResponse *sipster_sip_response_parse(const char *input, size_t size, i
 
         //TODO --> should validate data
         SipsterSipHeader * header = sipster_sip_request_parse_header(line.c_str());
-
+        if(!header) {
+            *result = SIPSTER_RETURN_MESSAGE_PARSE_ERROR;
+            sipster_sip_response_destroy(response);
+            return NULL;
+        }
         //TODO --> should proceed only if data is valid
 
         switch(header->headerId) {
@@ -318,11 +343,14 @@ SipsterSipResponse *sipster_sip_response_parse(const char *input, size_t size, i
         case SIP_HEADER_CONTENT_TYPE:
             content_type = (SipsterSipHeaderContentType *) header;
             break;
+        case SIP_HEADER_CSEQ:
+            response->responseLine.method = ((SipsterSipHeaderCSeq *) header)->methodId;
+            break;
         default:
             break;
         }
 
-        response->lastHeader = sipster_append_new_header(response->lastHeader, header);
+        response->lastHeader = sipster_sip_append_new_header(response->lastHeader, header);
         if(!response->firstHeader) {
             response->firstHeader = response->lastHeader;
         }
@@ -355,8 +383,27 @@ SipsterSipMessagePrint *sipster_sip_response_print(SipsterSipResponse *response)
     char * output;
     int offset = 0;
     int len = 0;
+    unsigned int contentLen = 0;
     SipsterSipMessagePrint * print = (SipsterSipMessagePrint *) sipster_allocator(sizeof(SipsterSipMessagePrint));
     size_t allocationSize = 500;
+
+    if(response->content) {
+        contentLen = response->content->length;
+        SipsterSipHeaderLeaf *h = sipster_sip_get_header(SIP_HEADER_CONTENT_TYPE, response->firstHeader, response->lastHeader);
+        if(!h) {
+            SipsterSipHeaderContentType *contentTypeHeader = (SipsterSipHeaderContentType *) sipster_init_basic_header(
+                    SIP_HEADER_CONTENT_TYPE, sizeof(SipsterSipHeaderContentType));
+            strncpy(contentTypeHeader->contentType, response->content->contentType, sizeof(contentTypeHeader->contentType));
+            response->lastHeader = sipster_sip_append_new_header(response->lastHeader, SIP_HEADER(contentTypeHeader));
+        }
+    }
+    SipsterSipHeaderLeaf *h = sipster_sip_get_header(SIP_HEADER_CONTENT_LENGTH, response->firstHeader, response->lastHeader);
+    if(!h) {
+        SipsterSipHeaderContentLength *contentLengthHeader = (SipsterSipHeaderContentLength *) sipster_init_basic_header(
+                SIP_HEADER_CONTENT_LENGTH, sizeof(SipsterSipHeaderContentLength));
+        contentLengthHeader->number = contentLen;
+        response->lastHeader = sipster_sip_append_new_header(response->lastHeader, SIP_HEADER(contentLengthHeader));
+    }
 
     if(response->lastHeader) {
         allocationSize += ((response->lastHeader->index+1)*200);
@@ -475,7 +522,7 @@ SipsterSipResponse *sipster_sip_request_create_response(SipsterSipHandle *sipste
             break;
         }
 
-        response->lastHeader = sipster_append_new_header(response->lastHeader, headerCopy);
+        response->lastHeader = sipster_sip_append_new_header(response->lastHeader, headerCopy);
         if(!response->firstHeader) {
             response->firstHeader = response->lastHeader;
         }
@@ -485,13 +532,13 @@ skip_header:
 
     int len = 0;
     if(response->content) {
-        current = sipster_get_header(SIP_HEADER_CONTENT_TYPE, response->firstHeader, response->lastHeader);
+        current = sipster_sip_get_header(SIP_HEADER_CONTENT_TYPE, response->firstHeader, response->lastHeader);
         SipsterSipHeaderContentType * ct = NULL;
         if(current) {
             ct = (SipsterSipHeaderContentType *) current->header;
         } else {
             ct = (SipsterSipHeaderContentType *) sipster_sip_header_create(sizeof(SipsterSipHeaderContentType));
-            response->lastHeader = sipster_append_new_header(response->lastHeader, (SipsterSipHeader *) ct);
+            response->lastHeader = sipster_sip_append_new_header(response->lastHeader, (SipsterSipHeader *) ct);
         }
         ct->header.header.headerId = SIP_HEADER_CONTENT_TYPE;
         ct->header.header.headerName = header_prototypes[ct->header.header.headerId].headerName;
@@ -500,13 +547,13 @@ skip_header:
         len = response->content->length;
     }
 
-    current = sipster_get_header(SIP_HEADER_CONTENT_LENGTH, response->firstHeader, response->lastHeader);
+    current = sipster_sip_get_header(SIP_HEADER_CONTENT_LENGTH, response->firstHeader, response->lastHeader);
     SipsterSipHeaderContentLength * cl = NULL;
     if(current) {
         cl = (SipsterSipHeaderContentLength *) current->header;
     } else {
         cl = (SipsterSipHeaderContentLength *) sipster_sip_header_create(sizeof(SipsterSipHeaderContentLength));
-        response->lastHeader = sipster_append_new_header(response->lastHeader, (SipsterSipHeader *) cl);
+        response->lastHeader = sipster_sip_append_new_header(response->lastHeader, (SipsterSipHeader *) cl);
     }
     cl->header.headerId = SIP_HEADER_CONTENT_LENGTH;
     cl->header.headerName = header_prototypes[cl->header.headerId].headerName;
@@ -516,16 +563,64 @@ skip_header:
     return response;
 }
 
-SipsterSipRequest *sipster_sip_request_create_template(SipsterSipCallLeg *leg, SipsterSipMethodEnum method) {
+SipsterSipRequest *sipster_sip_request_create_template(SipsterSipCallLeg *leg, SipsterSipMethodEnum method,
+                                                       char *content, const char *contentType, unsigned int contentLen) {
     SipsterSipRequest *request = (SipsterSipRequest *) sipster_allocator(sizeof(SipsterSipRequest));
 
     request->requestLine.method.methodId = method;
     request->requestLine.method.method = method_names[method];
     request->requestLine.requestUri = sipster_address_uri_print(&leg->to);
     request->requestLine.version = SIP_PROTOCOL;
+    request->remoteAddr = sipster_base_inet_addres_clone(&leg->peerAddress);
 
+    SipsterSipHeaderTo *to = (SipsterSipHeaderTo *) sipster_init_params_header(SIP_HEADER_TO, sizeof(SipsterSipHeaderTo));
+    char * toStr = sipster_address_print(&leg->to);
+    strncpy(to->address, toStr, sizeof(to->address));
+    sipster_free(toStr);
+    if(strlen(leg->toTag)) {
+        char * toTag = leg->toTag;
+        SipsterSipParameter * ttag = sipster_sip_parameter_create("tag", toTag);
+        sipster_sip_header_append_parameter(SIP_HEADER_WITH_PARAMS(to), ttag);
+    }
+    request->firstHeader = request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(to));
 
+    SipsterSipHeaderFrom *from = (SipsterSipHeaderFrom *) sipster_init_params_header(SIP_HEADER_FROM, sizeof(SipsterSipHeaderFrom));
+    char * fromStr = sipster_address_print(&leg->from);
+    strncpy(from->address, fromStr, sizeof(from->address));
+    sipster_free(fromStr);
+    char * fromTag = leg->fromTag;
+    SipsterSipParameter * tag = sipster_sip_parameter_create("tag", fromTag);
+    sipster_sip_header_append_parameter(SIP_HEADER_WITH_PARAMS(from), tag);
+    request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(from));
 
+    SipsterSipHeaderVia *via = (SipsterSipHeaderVia *) sipster_init_params_header(SIP_HEADER_VIA, sizeof(SipsterSipHeaderVia));
+    via->protocol = SIP_PROTOCOL_AND_TRANSPORT;
+    snprintf(via->address, sizeof(via->address), "%s:%u", sipster_base_inet_address_get_fqdn(&leg->localAddress), leg->localAddress.port);
+
+    char * randomString = sipster_generate_random_string(13);
+    SipsterSipParameter *branch = sipster_sip_parameter_create("branch", "");
+    snprintf(branch->value, sizeof(branch->value), SIP_VIA_BRANCH_MAGIC_FORMAT, randomString);
+    sipster_free(randomString);
+    sipster_sip_header_append_parameter(SIP_HEADER_WITH_PARAMS(via), branch);
+    request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(via));
+
+    SipsterSipHeaderMaxFwds *maxfwds = (SipsterSipHeaderMaxFwds *) sipster_init_basic_header(SIP_HEADER_MAX_FORWARDS, sizeof(SipsterSipHeaderMaxFwds));
+    maxfwds->number = 1;
+    request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(maxfwds));
+
+    SipsterSipHeaderCallID *headerCallID = (SipsterSipHeaderCallID *) sipster_init_basic_header(SIP_HEADER_CALL_ID, sizeof(SipsterSipHeaderCallID));
+    strncpy(headerCallID->data, leg->callId, sizeof(headerCallID->data));
+    request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(headerCallID));
+
+    SipsterSipHeaderCSeq *headerCSeq = (SipsterSipHeaderCSeq *) sipster_init_basic_header(SIP_HEADER_CSEQ, sizeof(SipsterSipHeaderCSeq));
+    headerCSeq->seq = 0; //TODO export to Call leg
+    headerCSeq->requestMethod =method_names[method];
+    headerCSeq->methodId = method;
+    request->lastHeader = sipster_sip_append_new_header(request->lastHeader, SIP_HEADER(headerCSeq));
+
+    if(content) {
+        SIP_BODY_CREATE(request->content, contentType, content, contentLen);
+    }
 
     return request;
 }

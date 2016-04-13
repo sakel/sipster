@@ -100,7 +100,7 @@ struct _SipsterSdpAttributeFmtp {
     char params[80];
 };
 
-SipsterSdpHeader * sipster_sdp_header_create(size_t size);
+SipsterSdpHeader *sipster_sdp_header_create(SipsterSdpHeaderEnum headerType, size_t size);
 void sipster_sdp_header_destroy(SipsterSdpHeader * header);
 SipsterSdpHeader * sipster_sdp_header_clone(SipsterSdpHeader *header);
 

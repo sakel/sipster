@@ -3,7 +3,7 @@
 //
 #include <sipster/log.h>
 #include <sipster/sdp.h>
-#include <utils.h>
+#include <sipster/utils.h>
 #include <stdlib.h>
 
 #include <gtest/gtest.h>
@@ -361,6 +361,8 @@ TEST(test_sdp_m_parse_print_3, test_sdp_m_parse_print_3) {
 TEST(test_sdp_parse_print_1, test_sdp_parse_print_1) {
     SipsterSdp *sdp;
 
+    setenv("SIPSTER_LOG_LEVEL", "5", 1);
+
     string sdps = "";
     sdps = sdps + "v=0\r\n" +
                 "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5\r\n" +
@@ -370,7 +372,7 @@ TEST(test_sdp_parse_print_1, test_sdp_parse_print_1) {
                 "e=j.doe@example.com (Jane Doe)\r\n" +
                 "c=IN IP4 224.2.17.12/127\r\n" +
                 "t=2873397496 2873404696\r\n" +
-                "a=recvonly\r\n" +
+                "a=sendonly\r\n" +
                 "m=audio 49170 RTP/AVP 0\r\n" +
                 "m=video 51372 RTP/AVP 99\r\n" +
                 "a=rtpmap:99 h263-1998/90000\r\n\r\n";

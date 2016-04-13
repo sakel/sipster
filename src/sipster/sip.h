@@ -17,6 +17,8 @@ body->length = len \
 
 #define SIP_SIPSTER_HANDLE(x) (SipsterSipHandle *) x
 
+#define SIP_VIA_BRANCH_MAGIC_FORMAT "z9hG4bK%s"
+
 typedef enum {
     SIP_LEG_INBOUND,
     SIP_LEG_OUTBOUND
@@ -80,6 +82,7 @@ struct _SipsterSipResponseMnemonic {
 struct _SipsterSipResponseLine {
     SipsterSipVersion version;
     SipsterSipResponseMnemonic status;
+    SipsterSipMethodEnum method;
 };
 
 struct _SipsterSipResponse {
@@ -102,10 +105,13 @@ struct _SipsterSipCallLeg {
     char fromTag[15];
     SipsterSipAddress to;
     char toTag[15];
+    SipsterInetAddress localAddress;
     SipsterInetAddress peerAddress;
     leg_request_handler requestHandler;
     leg_response_handler responseHandler;
     void *data;
+    void *localData; //FIXME Temporary hack - remove when call state machine added
+    void *remoteData; //FIXME Temporary hack - remove when call state machine added
 };
 
 struct _SipsterSipHandle {
@@ -140,8 +146,6 @@ char *sipster_sip_response_print_header(SipsterSipHeader *header);
 
 int sipster_sip_request_reply(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipResponse *response);
 int sipster_sip_request_send(SipsterSipHandle *handle, SipsterSipCallLeg *leg, SipsterSipRequest *request);
-
-SipsterSipRequest *sipster_sip_request_create_template(SipsterSipCallLeg *leg, SipsterSipMethodEnum method);
 
 #endif // SIP_H
 

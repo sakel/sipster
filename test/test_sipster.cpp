@@ -2,8 +2,7 @@
 #include <sipster/sipster.h>
 #include <sipster/log.h>
 #include <uv.h>
-#include <utils.h>
-#include <stdio.h>
+#include <sipster/utils.h>
 
 using namespace std;
 
@@ -89,9 +88,9 @@ TEST(DISABLED_test_header_finder, test_header_finder_1) {
     SipsterSipHeader * endHeader = (SipsterSipHeader *) sipster_allocator(sizeof(SipsterSipHeader));
     endHeader->headerId = SIP_HEADER_CALL_ID;
 
-    startLeaf = endLeaf = sipster_append_new_header(endLeaf, startHeader);
-    endLeaf = sipster_append_new_header(endLeaf, midHeader);
-    endLeaf = sipster_append_new_header(endLeaf, endHeader);
+    startLeaf = endLeaf = sipster_sip_append_new_header(endLeaf, startHeader);
+    endLeaf = sipster_sip_append_new_header(endLeaf, midHeader);
+    endLeaf = sipster_sip_append_new_header(endLeaf, endHeader);
 
     EXPECT_TRUE(startLeaf);
     EXPECT_TRUE(endLeaf);
@@ -100,15 +99,15 @@ TEST(DISABLED_test_header_finder, test_header_finder_1) {
     EXPECT_EQ(3, (int)startLeaf->metadata->count);
     EXPECT_EQ(3, (int)endLeaf->metadata->count);
 
-    SipsterSipHeaderLeaf *l = sipster_get_header(SIP_HEADER_TO, startLeaf, endLeaf);
+    SipsterSipHeaderLeaf *l = sipster_sip_get_header(SIP_HEADER_TO, startLeaf, endLeaf);
     EXPECT_TRUE(l);
     EXPECT_EQ(1, (int)l->metadata->count);
     EXPECT_EQ(SIP_HEADER_TO, l->header->headerId);
 
-    l = sipster_get_header(SIP_HEADER_FROM, startLeaf, endLeaf);
+    l = sipster_sip_get_header(SIP_HEADER_FROM, startLeaf, endLeaf);
     EXPECT_FALSE(l);
 
-    l = sipster_get_header(SIP_HEADER_CALL_ID, startLeaf, endLeaf);
+    l = sipster_sip_get_header(SIP_HEADER_CALL_ID, startLeaf, endLeaf);
     EXPECT_TRUE(l);
     EXPECT_EQ(2, (int)l->metadata->count);
     EXPECT_EQ(SIP_HEADER_CALL_ID, l->header->headerId);

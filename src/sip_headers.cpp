@@ -1,11 +1,9 @@
 #include <sipster/sip_headers.h>
-#include <utils.h>
+#include <sipster/utils.h>
 #include <string.h>
 #include <sipster/log.h>
-#include <cstdio>
 #include <regex>
 #include <sip_headers_private.h>
-#include <cstring>
 
 #define SIP_ADDRESS_URI_FORMAT_NO_PORT "%s:%s@%s"
 #define SIP_ADDRESS_URI_FORMAT_WITH_PORT "%s:%s@%s:%u"
@@ -158,7 +156,7 @@ SipsterSipHeader* via_parse(SipsterSipHeaderEnum id, const char * input) {
     strncpy(via_header->address, addressString.c_str(), sizeof(via_header->address)-1);
     SIPSTER_SIP_DEBUG(addressString.c_str());
 
-    via_header->parsedAddress = sipster_address_parse(addressString.c_str());
+    via_header->parsedAddress = sipster_base_inet_address_parse(addressString.c_str());
 
     SipsterSipParameter * params = parse_header_params(input, &pos);
     via_header->header.first = params;
@@ -192,7 +190,7 @@ SipsterSipHeader *via_hclone(SipsterSipHeader *header) {
     SipsterSipHeaderVia *cpy = (SipsterSipHeaderVia *) sipster_allocator(sizeof(SipsterSipHeaderVia));
 
     memcpy(cpy, header, sizeof(SipsterSipHeaderVia));
-    cpy->parsedAddress = sipster_address_clone(((SipsterSipHeaderVia *) header)->parsedAddress);
+    cpy->parsedAddress = sipster_base_inet_addres_clone(((SipsterSipHeaderVia *) header)->parsedAddress);
     sipster_sip_parameters_clone(SIP_HEADER_WITH_PARAMS(header), SIP_HEADER_WITH_PARAMS(cpy));
 
     return (SipsterSipHeader *) cpy;
@@ -423,7 +421,7 @@ void sipster_sip_parameter_destroy(SipsterSipParameter * param) {
     }
 }
 
-SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf *leaf, SipsterSipHeader * header) {
+SipsterSipHeaderLeaf *sipster_sip_append_new_header(SipsterSipHeaderLeaf *leaf, SipsterSipHeader *header) {
     SipsterSipHeaderLeaf * new_leaf = (SipsterSipHeaderLeaf *) sipster_allocator(sizeof(SipsterSipHeaderLeaf));
     new_leaf->header = header;
 
@@ -442,7 +440,7 @@ SipsterSipHeaderLeaf * sipster_append_new_header(SipsterSipHeaderLeaf *leaf, Sip
     return new_leaf;
 }
 
-void sipster_append_destroy(SipsterSipHeaderLeaf * leaf, int destroyHeader = 0) {
+void sipster_sip_header_append_destroy(SipsterSipHeaderLeaf *leaf, int destroyHeader = 0) {
     if(leaf && leaf->metadata) {
         free(leaf->metadata);
     }
@@ -456,7 +454,8 @@ void sipster_append_destroy(SipsterSipHeaderLeaf * leaf, int destroyHeader = 0) 
     }
 }
 
-SipsterSipHeaderLeaf * sipster_get_header(SipsterSipHeaderEnum headerId, SipsterSipHeaderLeaf *first, SipsterSipHeaderLeaf *last) {
+SipsterSipHeaderLeaf *sipster_sip_get_header(SipsterSipHeaderEnum headerId, SipsterSipHeaderLeaf *first,
+                                             SipsterSipHeaderLeaf *last) {
     SipsterSipHeaderLeaf *head = NULL;
     SipsterSipHeaderLeaf *tail = NULL;
     SipsterSipHeaderLeaf *current = first;
@@ -488,8 +487,10 @@ SipsterSipHeaderLeaf * sipster_get_header(SipsterSipHeaderEnum headerId, Sipster
 SipsterSipAddress * sipster_address_parse(const char * address) {
     SipsterSipAddress * addr = (SipsterSipAddress *) sipster_allocator(sizeof(SipsterSipAddress));
 
+    //TODO -
+
     int status = sipster_address_parse_inPlace(address, addr);
-    if(status != OK) {
+    if(status != SIPSTER_RETURN_OK) {
         sipster_free(addr);
         return NULL;
     }
@@ -534,7 +535,7 @@ int sipster_address_parse_inPlace(const char * address, SipsterSipAddress * addr
         addrObject->port = portNumber;
     }
 
-    return OK;
+    return SIPSTER_RETURN_OK;
 }
 
 void sipster_sip_header_append_parameter(SipsterSipHeaderWithParams *header, SipsterSipParameter *param) {
@@ -593,9 +594,9 @@ char *sipster_address_print(SipsterSipAddress *addr)
     //addr->port < 1 ? SIP_ADDRESS_FORMAT_NO_PORT : SIP_ADDRESS_FORMAT_WITH_PORT
     char *uri = (char *) sipster_allocator(300);
     if(addr->port < 1) {
-        snprintf(uri, 300, SIP_ADDRESS_FORMAT_NO_PORT, addr->name, addr->name ? " " : "", addr->schema, addr->user, addr->domain);
+        snprintf(uri, 300, SIP_ADDRESS_FORMAT_NO_PORT, addr->name, addr->name && strlen(addr->name) > 0 ? " " : "", addr->schema, addr->user, addr->domain);
     } else {
-        snprintf(uri, 300, SIP_ADDRESS_FORMAT_WITH_PORT, addr->name, addr->name ? " " : "", addr->schema, addr->user, addr->domain, addr->port);
+        snprintf(uri, 300, SIP_ADDRESS_FORMAT_WITH_PORT, addr->name, addr->name && strlen(addr->name) > 0 ? " " : "", addr->schema, addr->user, addr->domain, addr->port);
     }
 
     return uri;
