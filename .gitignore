@@ -1,7 +1,6 @@
 *~
 *.orig*
 *.o
-*.so*
 *.a
 *.la
 *CMakeFiles/*
