@@ -13,6 +13,7 @@
 #include <iterator>
 #include <sipster/log.h>
 #include <netdb.h>
+#include <vector>
 
 using namespace std;
 
