@@ -1,5 +1,5 @@
 set(include_dir ${PROJECT_SOURCE_DIR}/src)
-
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/Debug")
 include_directories("${include_dir}" "${PROJECT_SOURCE_DIR}/deps/include")
 
 set(HEADER_FILES ${include_dir}/sipster/sipster.h ${include_dir}/sipster/log.h ${include_dir}/sipster/sip.h ${include_dir}/sipster/sip_headers.h ${include_dir}/sipster/sdp.h
